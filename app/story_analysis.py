@@ -41,7 +41,7 @@ class LLMProvider(ABC):
 
 
 class OllamaProvider(LLMProvider):
-    def __init__(self, base_url: str, model: str, timeout: float = 120.0, logger: logging.Logger | None = None, retries: int = 2, retry_delay: float = 1.5) -> None:
+    def __init__(self, base_url: str, model: str, timeout: float = 60.0, logger: logging.Logger | None = None, retries: int = 0, retry_delay: float = 1.5) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
@@ -54,6 +54,7 @@ class OllamaProvider(LLMProvider):
             "You analyze book text and return JSON only. Provide a brief summary and any useful high-level story signals.",
             text,
             label="analyze_text",
+            num_predict=256,
         )
 
     def summarize_scene(self, text: str) -> dict[str, Any]:
@@ -61,6 +62,7 @@ class OllamaProvider(LLMProvider):
             "You summarize a single scene from a novel and return JSON only with keys summary, characters, and locations.",
             text,
             label="summarize_scene",
+            num_predict=192,
         )
 
     def extract_entities(self, text: str) -> dict[str, Any]:
@@ -68,9 +70,13 @@ class OllamaProvider(LLMProvider):
             "You extract recurring story entities from EPUB prose and return JSON only with keys characters, places, and organizations.",
             text,
             label="extract_entities",
+            num_predict=320,
         )
 
-    def _chat_json(self, system_prompt: str, user_text: str, label: str) -> dict[str, Any]:
+    def _chat_json(self, system_prompt: str, user_text: str, label: str, num_predict: int | None = None) -> dict[str, Any]:
+        options = {"temperature": 0.1}
+        if num_predict is not None:
+            options["num_predict"] = int(num_predict)
         payload = {
             "model": self.model,
             "messages": [
@@ -79,7 +85,7 @@ class OllamaProvider(LLMProvider):
             ],
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0.1},
+            "options": options,
         }
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
@@ -336,8 +342,9 @@ class StoryAnalyzer:
             _, chapter_item = get_chapter_document(book, chapter_entry.number, chapters)
             chapter_text = extract_chapter_html_text(chapter_item.get_content())
             paragraphs = _split_paragraphs(chapter_text)
-            chapter_summary = self._safe_provider_call("analyze_text", chapter_text)
-            chapter_entities = self._safe_provider_call("extract_entities", chapter_text)
+            analysis_excerpt = _analysis_excerpt(paragraphs, max_chars=max(400, self.settings.analysis.analysis_chunk_size // 12))
+            chapter_summary = self._safe_provider_call("analyze_text", analysis_excerpt or chapter_text)
+            chapter_entities = self._safe_provider_call("extract_entities", analysis_excerpt or chapter_text)
             _merge_entity_payload(character_index, place_index, org_index, chapter_entities, chapter_entry.number)
 
             chapter_scenes: list[dict[str, Any]] = []
@@ -345,8 +352,9 @@ class StoryAnalyzer:
             for scene_number, chunk in enumerate(scene_chunks, start=1):
                 self.logger.info("analysis chunk start chapter=%s chunk=%s/%s", chapter_entry.number, scene_number, len(scene_chunks))
                 scene_text = "\n\n".join(item["text"] for item in chunk)
-                scene_info = self._safe_provider_call("summarize_scene", scene_text)
-                chunk_entities = self._safe_provider_call("extract_entities", scene_text)
+                scene_excerpt = _analysis_excerpt(chunk, max_chars=max(600, self.settings.analysis.analysis_chunk_size // 10))
+                scene_info = self._safe_provider_call("summarize_scene", scene_excerpt or scene_text)
+                chunk_entities = self._safe_provider_call("extract_entities", scene_excerpt or scene_text)
                 _merge_entity_payload(character_index, place_index, org_index, chunk_entities, chapter_entry.number)
 
                 scene = _build_scene_record(
@@ -782,6 +790,25 @@ def _split_paragraphs(text: str) -> list[dict[str, Any]]:
     return [{"index": idx, "text": paragraph} for idx, paragraph in enumerate(raw_paragraphs, start=1)]
 
 
+def _analysis_excerpt(paragraphs: list[dict[str, Any]], max_chars: int) -> str:
+    if not paragraphs:
+        return ""
+    max_chars = max(1, int(max_chars))
+    collected: list[str] = []
+    total = 0
+    for paragraph in paragraphs:
+        text = str(paragraph.get("text") or "").strip()
+        if not text:
+            continue
+        if collected and total + len(text) > max_chars:
+            break
+        collected.append(text)
+        total += len(text)
+        if total >= max_chars:
+            break
+    return "\n\n".join(collected)
+
+
 def _chunk_paragraphs(paragraphs: list[dict[str, Any]], max_chars: int) -> list[list[dict[str, Any]]]:
     if not paragraphs:
         return []
@@ -864,7 +891,8 @@ def _safe_provider_call(self, method_name: str, text: str) -> dict[str, Any]:
     try:
         result = method(text)
     except Exception as exc:
-        raise BookAnalysisError(f"{method_name} failed: {exc}") from exc
+        self.logger.warning("provider %s failed (%s); falling back to heuristics", method_name, exc)
+        result = getattr(HeuristicProvider(), method_name)(text)
     if result is None:
         return {}
     if isinstance(result, dict):
@@ -873,7 +901,8 @@ def _safe_provider_call(self, method_name: str, text: str) -> dict[str, Any]:
         parsed = _coerce_json(result)
         if isinstance(parsed, dict):
             return parsed
-    return {}
+    self.logger.warning("provider %s returned non-JSON; falling back to heuristics", method_name)
+    return getattr(HeuristicProvider(), method_name)(text)
 
 
 # Bind method on the class after definition without polluting the main flow.

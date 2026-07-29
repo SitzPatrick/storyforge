@@ -52,11 +52,22 @@ class AnalysisSettings:
 
 
 @dataclass
+class NormalizationSettings:
+    enabled: bool
+    output_dir_name: str
+    deduplicate_dialogue: bool
+    minimum_confidence: float
+    rejection_labels: dict[str, list[str]] = field(default_factory=dict)
+    aliases: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+
+
+@dataclass
 class StoryforgeSettings:
     paths: PathSettings
     kokoro: KokoroSettings
     conversion: ConversionSettings
     analysis: AnalysisSettings
+    normalization: NormalizationSettings
 
 
 def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
@@ -65,6 +76,19 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
         raise FileNotFoundError(f"Config file not found: {path}")
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    normalization_raw = data.get("normalization") or {}
+    rejection_labels = {
+        "characters": list((normalization_raw.get("rejection_labels") or {}).get("characters", [])),
+        "places": list((normalization_raw.get("rejection_labels") or {}).get("places", [])),
+        "organizations": list((normalization_raw.get("rejection_labels") or {}).get("organizations", [])),
+    }
+    aliases_raw = normalization_raw.get("aliases") or {}
+    aliases = {
+        "characters": {str(k): list(v) for k, v in (aliases_raw.get("characters") or {}).items()},
+        "places": {str(k): list(v) for k, v in (aliases_raw.get("places") or {}).items()},
+        "organizations": {str(k): list(v) for k, v in (aliases_raw.get("organizations") or {}).items()},
+    }
+
     return StoryforgeSettings(
         paths=PathSettings(
             books_dir=_as_path(data, ("paths", "books_dir")),
@@ -97,6 +121,14 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             analysis_chunk_size=int(_as_number(data, ("analysis", "analysis_chunk_size"), default=6000)),
             cache_enabled=bool(_as_bool(data, ("analysis", "cache_enabled"), default=True)),
             cache_directory=_as_str(data, ("analysis", "cache_directory"), default="analysis"),
+        ),
+        normalization=NormalizationSettings(
+            enabled=bool(_as_bool(normalization_raw, ("enabled",), default=True)),
+            output_dir_name=str(normalization_raw.get("output_dir_name", "analysis_normalized")),
+            deduplicate_dialogue=bool(_as_bool(normalization_raw, ("deduplicate_dialogue",), default=True)),
+            minimum_confidence=float(normalization_raw.get("minimum_confidence", 0.5)),
+            rejection_labels=rejection_labels,
+            aliases=aliases,
         ),
     )
 

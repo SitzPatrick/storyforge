@@ -9,9 +9,10 @@ import pytest
 from ebooklib import epub
 
 from app.config import load_settings
+from app.story_analysis import LLMProvider
 
 
-class FakeAnalysisProvider:
+class FakeAnalysisProvider(LLMProvider):
     def __init__(self):
         self.calls = Counter()
 
@@ -49,9 +50,31 @@ class FakeAnalysisProvider:
         }
 
 
-class CountingProvider(FakeAnalysisProvider):
-    def __init__(self):
+class LengthLimitedProvider(FakeAnalysisProvider):
+    def __init__(self, max_input_chars: int = 1000):
         super().__init__()
+        self.max_input_chars = max_input_chars
+
+    def _check_length(self, text: str):
+        if len(text) > self.max_input_chars:
+            raise AssertionError(f"input too long: {len(text)} > {self.max_input_chars}")
+
+    def analyze_text(self, text: str):
+        self._check_length(text)
+        return super().analyze_text(text)
+
+    def summarize_scene(self, text: str):
+        self._check_length(text)
+        return super().summarize_scene(text)
+
+    def extract_entities(self, text: str):
+        self._check_length(text)
+        return super().extract_entities(text)
+
+
+class CountingProvider(LengthLimitedProvider):
+    def __init__(self):
+        super().__init__(max_input_chars=10_000_000)
         self.fail_after_first_run = False
 
     def extract_entities(self, text: str):
@@ -187,6 +210,38 @@ def test_story_analyzer_reuses_cache_without_reinvoking_provider(tmp_path: Path,
     second = analyzer.analyze(epub_path)
     assert second.cache_hit is True
     assert second.story["title"] == first.story["title"]
+
+
+def test_story_analyzer_handles_long_text_with_length_limited_provider(tmp_path: Path, analysis_settings):
+    from app.story_analysis import StoryAnalyzer
+
+    # Build a longer chapter to prove the analyzer trims the model-facing inputs.
+    epub_path = tmp_path / "long-story.epub"
+    book = epub.EpubBook()
+    book.set_identifier("storyforge-long-analysis-test")
+    book.set_title("Long Story")
+    book.set_language("en")
+    book.add_author("Test Author")
+
+    paragraphs = []
+    for idx in range(1, 40):
+        paragraphs.append(f"<p>Chapter paragraph {idx}. \"We must go,\" Ada said. Ben answered from River City and the Guild watched from the Tower.</p>")
+    chapter = epub.EpubHtml(title="Chapter 1", file_name="chap_01.xhtml", lang="en")
+    chapter.content = "<html><body><h1>Chapter 1</h1>" + "\n".join(paragraphs) + "</body></html>"
+    book.add_item(chapter)
+    book.toc = [epub.Link(chapter.file_name, chapter.title, "c1")]
+    book.spine = ["nav", chapter]
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    epub.write_epub(str(epub_path), book)
+
+    analyzer = StoryAnalyzer(analysis_settings, provider=LengthLimitedProvider(max_input_chars=1000))
+    result = analyzer.analyze(epub_path)
+
+    assert result.cache_hit is False
+    assert len(result.story["chapters"]) == 1
+    assert len(result.scenes) > 0
+    assert len(result.dialogue) > 0
 
 
 def test_story_analyzer_handles_malformed_epub(tmp_path: Path, analysis_settings):

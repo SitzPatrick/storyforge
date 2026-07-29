@@ -26,3 +26,101 @@ analysis:
   analysis_chunk_size: 6000
   cache_enabled: true
   cache_directory: analysis
+normalization:
+  enabled: true
+  output_dir_name: analysis_normalized
+  deduplicate_dialogue: true
+  minimum_confidence: 0.5
+  rejection_labels:
+    characters:
+      - I
+      - me
+      - my
+      - mine
+      - myself
+      - you
+      - your
+      - yours
+      - yourself
+      - yourselves
+      - he
+      - him
+      - his
+      - himself
+      - she
+      - her
+      - hers
+      - herself
+      - we
+      - us
+      - our
+      - ours
+      - ourselves
+      - they
+      - them
+      - their
+      - theirs
+      - themselves
+      - it
+      - its
+      - itself
+      - someone
+      - somebody
+      - anyone
+      - anybody
+      - everyone
+      - everybody
+      - person
+      - man
+      - woman
+      - girl
+      - boy
+      - people
+      - villagers
+      - miners
+      - knight
+      - here
+      - there
+      - place
+      - unknown
+      - unknown location
+      - not specified
+      - none
+      - n/a
+      - narrator
+      - the narrator
+      - a woman
+      - heavy man
+      - the girl
+      - the quig
+      - the leader
+      - the guy who was coldly thrown to his death
+      - the throwers
+    places:
+      - here
+      - there
+      - place
+      - unknown
+      - unknown location
+      - not specified
+      - none
+      - n/a
+    organizations:
+      - unknown
+      - unknown location
+      - not specified
+      - none
+      - n/a
+  aliases:
+    characters:
+      Bobby Pendragon:
+        - Bobby
+        - Pendragon
+      Mark Dimond:
+        - Mark
+      Courtney Chetwynde:
+        - Courtney
+      Uncle Press:
+        - Press
+    places: {}
+    organizations: {}
