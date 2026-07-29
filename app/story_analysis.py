@@ -78,6 +78,8 @@ class OllamaProvider(LLMProvider):
                 {"role": "user", "content": user_text},
             ],
             "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.1},
         }
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
