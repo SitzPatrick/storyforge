@@ -13,6 +13,12 @@ SCHEMA_VERSIONS = {
     "series_bindings": 1,
 }
 
+_REQUIRED_VOICE_REGISTRY_KEYS = {
+    "schema_version",
+    "registry_version",
+    "voices",
+}
+
 _REQUIRED_VOICE_CAPABILITY_KEYS = {
     "schema_version",
     "voice_id",
@@ -87,22 +93,59 @@ def migrate_schema(data: Mapping[str, Any], target_schema: str) -> dict[str, Any
 
 
 def validate_voice_registry(data: Mapping[str, Any]) -> list[str]:
-    errors = _validate_required_keys(data, _REQUIRED_VOICE_CAPABILITY_KEYS, "voice registry")
+    errors = _validate_required_keys(data, _REQUIRED_VOICE_REGISTRY_KEYS, "voice registry")
+    if not isinstance(data.get("schema_version"), int):
+        errors.append("voice registry schema_version must be an integer")
+    if not isinstance(data.get("registry_version"), str) or not data.get("registry_version"):
+        errors.append("voice registry registry_version must be a non-empty string")
     voices = data.get("voices")
     if not isinstance(voices, Sequence) or isinstance(voices, (str, bytes)):
         errors.append("voice registry voices must be a sequence")
         return errors
-    seen = set()
+    seen_pairs = set()
+    seen_voice_ids = set()
     for idx, voice in enumerate(voices):
         if not isinstance(voice, Mapping):
             errors.append(f"voice registry entry {idx} must be a mapping")
             continue
         entry_errors = _validate_required_keys(voice, _REQUIRED_VOICE_CAPABILITY_KEYS, f"voice registry entry {idx}")
         errors.extend(entry_errors)
-        key = (voice.get("provider"), voice.get("provider_voice_id"))
-        if key in seen:
-            errors.append(f"duplicate voice registry key: {key[0]}::{key[1]}")
-        seen.add(key)
+        voice_id = voice.get("voice_id")
+        provider = voice.get("provider")
+        provider_voice_id = voice.get("provider_voice_id")
+        if not isinstance(voice_id, str) or not voice_id.strip():
+            errors.append(f"voice registry entry {idx} voice_id must be a non-empty string")
+        if not isinstance(provider, str) or not provider.strip():
+            errors.append(f"voice registry entry {idx} provider must be a non-empty string")
+        if not isinstance(provider_voice_id, str) or not provider_voice_id.strip():
+            errors.append(f"voice registry entry {idx} provider_voice_id must be a non-empty string")
+        if voice_id in seen_voice_ids:
+            errors.append(f"duplicate voice registry voice_id: {voice_id}")
+        seen_voice_ids.add(voice_id)
+        pair = (provider, provider_voice_id)
+        if pair in seen_pairs:
+            errors.append(f"duplicate voice registry key: {provider}::{provider_voice_id}")
+        seen_pairs.add(pair)
+
+        display_name = voice.get("display_name")
+        if not isinstance(display_name, str) or not display_name.strip():
+            errors.append(f"voice registry entry {idx} display_name must be a non-empty string")
+        if not isinstance(voice.get("quality_score"), (int, float)):
+            errors.append(f"voice registry entry {idx} quality_score must be numeric")
+        if not isinstance(voice.get("base_priority"), int):
+            errors.append(f"voice registry entry {idx} base_priority must be an integer")
+        if not isinstance(voice.get("availability"), str) or not voice.get("availability"):
+            errors.append(f"voice registry entry {idx} availability must be a non-empty string")
+        _validate_optional_string_field(voice, idx, "gender_presentation", errors)
+        _validate_optional_string_field(voice, idx, "age_presentation", errors)
+        _validate_optional_string_field(voice, idx, "similarity_cluster", errors)
+        _validate_optional_string_field(voice, idx, "licensing_information", errors)
+        _validate_optional_int_field(voice, idx, "latency_estimate_ms", errors)
+        _validate_optional_int_field(voice, idx, "sample_rate_hz", errors)
+        _validate_string_sequence_field(voice, idx, "archetype_tags", errors)
+        _validate_string_sequence_field(voice, idx, "style_tags", errors)
+        _validate_string_sequence_field(voice, idx, "supported_languages", errors)
+        _validate_string_sequence_field(voice, idx, "supported_controls", errors)
     return errors
 
 
@@ -190,3 +233,25 @@ def _validate_sequence_of_strings(data: Mapping[str, Any], key: str, errors: lis
     for idx, item in enumerate(value):
         if not isinstance(item, str):
             errors.append(f"{key}[{idx}] must be a string")
+
+
+def _validate_optional_string_field(data: Mapping[str, Any], idx: int, key: str, errors: list[str]) -> None:
+    value = data.get(key)
+    if value is not None and not isinstance(value, str):
+        errors.append(f"voice registry entry {idx} {key} must be a string or null")
+
+
+def _validate_optional_int_field(data: Mapping[str, Any], idx: int, key: str, errors: list[str]) -> None:
+    value = data.get(key)
+    if value is not None and not isinstance(value, int):
+        errors.append(f"voice registry entry {idx} {key} must be an integer or null")
+
+
+def _validate_string_sequence_field(data: Mapping[str, Any], idx: int, key: str, errors: list[str]) -> None:
+    value = data.get(key)
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        errors.append(f"voice registry entry {idx} {key} must be a sequence")
+        return
+    for item_idx, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            errors.append(f"voice registry entry {idx} {key}[{item_idx}] must be a non-empty string")

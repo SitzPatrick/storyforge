@@ -86,6 +86,7 @@ def test_voice_plan_serialization_is_deterministic():
 def test_validation_rules_reject_invalid_required_fields():
     invalid_registry = {
         "schema_version": 1,
+        "registry_version": "2026-07-29",
         "voices": [
             {"schema_version": 1, "voice_id": "v1", "provider": "kokoro"},
             {"schema_version": 1, "voice_id": "v2", "provider": "kokoro", "provider_voice_id": "dup", "display_name": "Voice 2", "availability": "available", "quality_score": 0.1, "base_priority": 1},

@@ -9,6 +9,7 @@ from .models import (
     VoiceCapability,
     VoicePlan,
 )
+from .registry import dump_voice_registry, is_voice_selectable, load_voice_registry, selectable_voices, voice_registry_key, write_voice_registry
 from .schema import (
     SCHEMA_VERSIONS,
     canonical_json_dumps,
@@ -29,6 +30,12 @@ __all__ = [
     "VoiceAssignment",
     "VoiceCapability",
     "VoicePlan",
+    "dump_voice_registry",
+    "is_voice_selectable",
+    "load_voice_registry",
+    "selectable_voices",
+    "voice_registry_key",
+    "write_voice_registry",
     "SCHEMA_VERSIONS",
     "canonical_json_dumps",
     "migrate_schema",
