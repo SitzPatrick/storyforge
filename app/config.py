@@ -62,12 +62,27 @@ class NormalizationSettings:
 
 
 @dataclass
+class VoicePlannerSettings:
+    schema_version: int
+    enabled: bool
+    registry_path: str
+    registry_dir_name: str
+    series_dir_name: str
+    books_dir_name: str
+    voice_plan_filename: str
+    report_filename: str
+    preserve_user_edits: bool
+    dry_run_default: bool
+
+
+@dataclass
 class StoryforgeSettings:
     paths: PathSettings
     kokoro: KokoroSettings
     conversion: ConversionSettings
     analysis: AnalysisSettings
     normalization: NormalizationSettings
+    voice_planner: VoicePlannerSettings
 
 
 def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
@@ -129,6 +144,18 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             minimum_confidence=float(normalization_raw.get("minimum_confidence", 0.5)),
             rejection_labels=rejection_labels,
             aliases=aliases,
+        ),
+        voice_planner=VoicePlannerSettings(
+            schema_version=int(_as_number(data, ("voice_planner", "schema_version"), default=1)),
+            enabled=bool(_as_bool(data, ("voice_planner", "enabled"), default=True)),
+            registry_path=_as_str(data, ("voice_planner", "registry_path"), default="voices/registry.json"),
+            registry_dir_name=_as_str(data, ("voice_planner", "registry_dir_name"), default="voices"),
+            series_dir_name=_as_str(data, ("voice_planner", "series_dir_name"), default="series"),
+            books_dir_name=_as_str(data, ("voice_planner", "books_dir_name"), default="books"),
+            voice_plan_filename=_as_str(data, ("voice_planner", "voice_plan_filename"), default="voice_plan.json"),
+            report_filename=_as_str(data, ("voice_planner", "report_filename"), default="voice_assignment_report.json"),
+            preserve_user_edits=bool(_as_bool(data, ("voice_planner", "preserve_user_edits"), default=True)),
+            dry_run_default=bool(_as_bool(data, ("voice_planner", "dry_run_default"), default=True)),
         ),
     )
 

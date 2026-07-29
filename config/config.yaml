@@ -124,3 +124,14 @@ normalization:
         - Press
     places: {}
     organizations: {}
+voice_planner:
+  schema_version: 1
+  enabled: true
+  registry_path: voices/registry.json
+  registry_dir_name: voices
+  series_dir_name: series
+  books_dir_name: books
+  voice_plan_filename: voice_plan.json
+  report_filename: voice_assignment_report.json
+  preserve_user_edits: true
+  dry_run_default: true
