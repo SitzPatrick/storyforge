@@ -7,6 +7,7 @@ from typing import Any, Sequence
 import os
 import yaml
 
+from app.voice_planner.budget import BudgetConfig
 from app.voice_planner.scoring import ScoringConfig
 
 
@@ -76,6 +77,7 @@ class VoicePlannerSettings:
     preserve_user_edits: bool
     dry_run_default: bool
     scoring: ScoringConfig = field(default_factory=ScoringConfig.default)
+    budget: BudgetConfig = field(default_factory=BudgetConfig.default)
 
 
 @dataclass
@@ -96,6 +98,7 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     voice_planner_raw = data.get("voice_planner") or {}
     scoring_raw = voice_planner_raw.get("scoring") or {}
+    budget_raw = voice_planner_raw.get("budget") or {}
     normalization_raw = data.get("normalization") or {}
     rejection_labels = {
         "characters": list((normalization_raw.get("rejection_labels") or {}).get("characters", [])),
@@ -162,6 +165,7 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             preserve_user_edits=bool(_as_bool(data, ("voice_planner", "preserve_user_edits"), default=True)),
             dry_run_default=bool(_as_bool(data, ("voice_planner", "dry_run_default"), default=True)),
             scoring=ScoringConfig.from_mapping(scoring_raw),
+            budget=BudgetConfig.from_mapping(budget_raw),
         ),
     )
 

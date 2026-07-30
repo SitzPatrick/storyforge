@@ -156,3 +156,56 @@ voice_planner:
     reuse_penalty: 300
     scarcity_penalty_scale: 1
     unknown_metadata_behavior: neutral
+  budget:
+    schema_version: 1
+    narrator_reserve: 1
+    narrator_sharing_policy: prefer_distinct
+    tier_weights:
+      narrator: 1
+      primary or lead characters: 2
+      major recurring characters: 2
+      supporting recurring characters: 1
+      minor speaking characters: 1
+      one-scene or one-off speakers: 0
+      unresolved speakers: 0
+    minimum_distinct_voices_by_tier:
+      narrator: 1
+      primary or lead characters: 1
+      major recurring characters: 1
+      supporting recurring characters: 1
+      minor speaking characters: 0
+      one-scene or one-off speakers: 0
+      unresolved speakers: 0
+    maximum_reuse_by_tier:
+      narrator: 0
+      primary or lead characters: 0
+      major recurring characters: 1
+      supporting recurring characters: 2
+      minor speaking characters: 4
+      one-scene or one-off speakers: 6
+      unresolved speakers: 2
+    protected_tier_thresholds:
+      narrator: 1
+      primary or lead characters: 1
+      major recurring characters: 1
+      supporting recurring characters: 0
+    scarcity_thresholds:
+      low: 1.0
+      moderate: 1.2
+      high: 1.5
+      critical: 2.0
+    reuse_penalty_scale: 1
+    locked_binding_capacity_behavior: reserve
+    inherited_binding_reserve_behavior: reserve_when_available
+    unknown_prominence_behavior: conservative
+    one_off_sharing_policy: preferred_due_to_scarcity
+    dialogue_weight: 1
+    scene_weight: 1
+    recurrence_bonus: 1
+    relationship_density_bonus: 1
+    first_appearance_bonus: 1
+    first_appearance_threshold: 3
+    locked_binding_bonus: 1
+    manual_override_bonus: 1
+    inherited_binding_bonus: 1
+    narrator_locked_bonus: 1
