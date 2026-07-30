@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -72,11 +73,11 @@ _REQUIRED_ASSIGNMENT_REPORT_KEYS = {
 _REQUIRED_SERIES_BINDINGS_KEYS = {
     "schema_version",
     "series_id",
-    "bindings",
     "narrator",
-    "history",
-    "updated_at",
+    "bindings",
 }
+
+_SERIES_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 _REQUIRED_CHARACTER_PROFILE_KEYS = {
     "schema_version",
@@ -151,9 +152,7 @@ def validate_voice_registry(data: Mapping[str, Any]) -> list[str]:
         if pair in seen_pairs:
             errors.append(f"duplicate voice registry key: {provider}::{provider_voice_id}")
         seen_pairs.add(pair)
-
-        display_name = voice.get("display_name")
-        if not isinstance(display_name, str) or not display_name.strip():
+        if not isinstance(voice.get("display_name"), str) or not voice.get("display_name"):
             errors.append(f"voice registry entry {idx} display_name must be a non-empty string")
         if not isinstance(voice.get("quality_score"), (int, float)):
             errors.append(f"voice registry entry {idx} quality_score must be numeric")
@@ -189,8 +188,7 @@ def validate_voice_plan(data: Mapping[str, Any]) -> list[str]:
     _validate_sequence_of_mappings(data, "conflicts", errors)
     _validate_sequence_of_mappings(data, "scarcity_events", errors)
     _validate_sequence_of_strings(data, "warnings", errors)
-    statistics = data.get("statistics")
-    if not isinstance(statistics, Mapping):
+    if not isinstance(data.get("statistics"), Mapping):
         errors.append("voice plan statistics must be a mapping")
     return errors
 
@@ -221,15 +219,103 @@ def validate_assignment_report(data: Mapping[str, Any]) -> list[str]:
 
 def validate_series_bindings(data: Mapping[str, Any]) -> list[str]:
     errors = _validate_required_keys(data, _REQUIRED_SERIES_BINDINGS_KEYS, "series bindings")
-    bindings = data.get("bindings")
-    if not isinstance(bindings, Sequence) or isinstance(bindings, (str, bytes)):
-        errors.append("series bindings bindings must be a sequence")
+    series_id = data.get("series_id")
+    if not isinstance(series_id, str) or not series_id.strip():
+        errors.append("series bindings series_id must be a non-empty string")
+    elif not _SERIES_ID_PATTERN.fullmatch(series_id):
+        errors.append(f"series bindings series_id must match {_SERIES_ID_PATTERN.pattern}")
     narrator = data.get("narrator")
     if narrator is not None and not isinstance(narrator, Mapping):
         errors.append("series bindings narrator must be a mapping or null")
+    bindings = data.get("bindings")
+    if not isinstance(bindings, Sequence) or isinstance(bindings, (str, bytes)):
+        errors.append("series bindings bindings must be a sequence")
+        bindings = []
+    seen_character_ids: set[str] = set()
+    for idx, binding in enumerate(bindings):
+        if not isinstance(binding, Mapping):
+            errors.append(f"series bindings bindings[{idx}] must be a mapping")
+            continue
+        errors.extend([f"bindings[{idx}]: {message}" for message in validate_series_binding(binding)])
+        char_id = binding.get("canonical_character_id")
+        if isinstance(char_id, str) and char_id:
+            if char_id in seen_character_ids:
+                errors.append(f"duplicate character bindings: {char_id}")
+            seen_character_ids.add(char_id)
+    if narrator is not None:
+        errors.extend([f"narrator: {message}" for message in validate_series_binding(narrator, target_kind="narrator")])
     history = data.get("history")
-    if not isinstance(history, Sequence) or isinstance(history, (str, bytes)):
-        errors.append("series bindings history must be a sequence")
+    if history is not None:
+        if not isinstance(history, Sequence) or isinstance(history, (str, bytes)):
+            errors.append("series bindings history must be a sequence")
+        else:
+            for idx, entry in enumerate(history):
+                if not isinstance(entry, Mapping):
+                    errors.append(f"series bindings history[{idx}] must be a mapping")
+                else:
+                    errors.extend([f"history[{idx}]: {message}" for message in validate_series_binding_history(entry)])
+    updated_at = data.get("updated_at")
+    if updated_at is not None and not isinstance(updated_at, str):
+        errors.append("series bindings updated_at must be a string or null")
+    return errors
+
+
+def validate_series_binding(data: Mapping[str, Any], *, target_kind: str | None = None) -> list[str]:
+    errors: list[str] = []
+    if target_kind is not None:
+        if data.get("target_kind") != target_kind:
+            errors.append(f"binding target_kind must be {target_kind!r}")
+    elif data.get("target_kind") not in {"narrator", "character"}:
+        errors.append("binding target_kind must be 'narrator' or 'character'")
+    if data.get("target_kind") == "character":
+        if not isinstance(data.get("canonical_character_id"), str) or not data.get("canonical_character_id"):
+            errors.append("binding canonical_character_id must be a non-empty string")
+    elif data.get("canonical_character_id") is not None and data.get("target_kind") == "narrator":
+        errors.append("narrator binding canonical_character_id must be null or omitted")
+    for key in ("provider", "provider_voice_id"):
+        if not isinstance(data.get(key), str) or not data.get(key):
+            errors.append(f"binding {key} must be a non-empty string")
+    for key in ("locked", "manual_override", "inherited", "unavailable"):
+        if not isinstance(data.get(key, False), bool):
+            errors.append(f"binding {key} must be a boolean")
+    if data.get("assignment_confidence") is not None and not isinstance(data.get("assignment_confidence"), (int, float)):
+        errors.append("binding assignment_confidence must be numeric or null")
+    for key in ("assignment_reason", "assignment_timestamp", "user_notes", "voice_id"):
+        value = data.get(key)
+        if value is not None and not isinstance(value, str):
+            errors.append(f"binding {key} must be a string or null")
+    provenance = data.get("provenance")
+    if provenance is not None and not isinstance(provenance, Mapping):
+        errors.append("binding provenance must be a mapping or null")
+    history = data.get("history")
+    if history is not None:
+        if not isinstance(history, Sequence) or isinstance(history, (str, bytes)):
+            errors.append("binding history must be a sequence")
+        else:
+            for idx, entry in enumerate(history):
+                if not isinstance(entry, Mapping):
+                    errors.append(f"binding history[{idx}] must be a mapping")
+                else:
+                    errors.extend([f"history[{idx}]: {message}" for message in validate_series_binding_history(entry)])
+    return errors
+
+
+def validate_series_binding_history(data: Mapping[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data.get("target_kind"), str) or data.get("target_kind") not in {"narrator", "character"}:
+        errors.append("history entry target_kind must be 'narrator' or 'character'")
+    if data.get("target_kind") == "character" and (not isinstance(data.get("canonical_character_id"), str) or not data.get("canonical_character_id")):
+        errors.append("history entry canonical_character_id must be a non-empty string for character entries")
+    if not isinstance(data.get("timestamp"), str) or not data.get("timestamp"):
+        errors.append("history entry timestamp must be a non-empty string")
+    for key in ("reason", "source", "previous_provider", "previous_provider_voice_id", "new_provider", "new_provider_voice_id"):
+        value = data.get(key)
+        if value is not None and not isinstance(value, str):
+            errors.append(f"history entry {key} must be a string or null")
+    for key in ("prior_locked", "manual_change"):
+        value = data.get(key)
+        if value is not None and not isinstance(value, bool):
+            errors.append(f"history entry {key} must be a boolean or null")
     return errors
 
 
@@ -292,8 +378,7 @@ def validate_character_profile_bundle(data: Mapping[str, Any]) -> list[str]:
 def _validate_required_keys(data: Mapping[str, Any], required: set[str], label: str) -> list[str]:
     if not isinstance(data, Mapping):
         return [f"{label} must be a mapping"]
-    errors = [f"missing {label} field: {key}" for key in sorted(required - set(data.keys()))]
-    return errors
+    return [f"missing {label} field: {key}" for key in sorted(required - set(data.keys()))]
 
 
 def _validate_sequence_of_mappings(data: Mapping[str, Any], key: str, errors: list[str]) -> None:

@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "series_id": "pendragon",
+  "narrator": {
+    "target_kind": "narrator",
+    "provider": "kokoro",
+    "provider_voice_id": "af_bella",
+    "voice_id": "kokoro.af_bella",
+    "locked": true,
+    "manual_override": true,
+    "inherited": false,
+    "assignment_confidence": 0.95,
+    "assignment_reason": "preferred narrator for the Pendragon series",
+    "assignment_timestamp": "2026-07-29T23:00:00Z",
+    "provenance": {
+      "source": "manual",
+      "reason": "series preference",
+      "basis": "human selection",
+      "selected_from": ["kokoro.af_bella", "openai.nova"],
+      "score": null,
+      "tie_breaker": null
+    },
+    "user_notes": "Keep as the series narrator unless explicitly changed.",
+    "unavailable": true,
+    "history": [
+      {
+        "target_kind": "narrator",
+        "timestamp": "2026-07-28T20:00:00Z",
+        "reason": "initial series choice",
+        "source": "manual",
+        "manual_change": true,
+        "prior_locked": false,
+        "new_provider": "kokoro",
+        "new_provider_voice_id": "af_bella"
+      }
+    ]
+  },
+  "bindings": [
+    {
+      "target_kind": "character",
+      "canonical_character_id": "bobby-pendragon",
+      "provider": "openai",
+      "provider_voice_id": "nova",
+      "voice_id": "openai.nova",
+      "locked": false,
+      "manual_override": true,
+      "inherited": false,
+      "assignment_confidence": 0.88,
+      "assignment_reason": "manual override from plan review",
+      "assignment_timestamp": "2026-07-29T23:01:00Z",
+      "provenance": {
+        "source": "manual",
+        "reason": "user edited plan",
+        "basis": "character override",
+        "selected_from": ["openai.nova"],
+        "score": 0.88,
+        "tie_breaker": null
+      },
+      "user_notes": "Use for Bobby in the current book.",
+      "unavailable": false,
+      "history": [
+        {
+          "target_kind": "character",
+          "canonical_character_id": "bobby-pendragon",
+          "timestamp": "2026-07-28T20:10:00Z",
+          "reason": "series binding imported",
+          "source": "planner",
+          "manual_change": false,
+          "prior_locked": true,
+          "previous_provider": "kokoro",
+          "previous_provider_voice_id": "af_bella",
+          "new_provider": "openai",
+          "new_provider_voice_id": "nova"
+        }
+      ]
+    },
+    {
+      "target_kind": "character",
+      "canonical_character_id": "courtney-chetwynde",
+      "provider": "elevenlabs",
+      "provider_voice_id": "rachel",
+      "voice_id": "elevenlabs.rachel",
+      "locked": true,
+      "manual_override": false,
+      "inherited": true,
+      "assignment_confidence": 0.79,
+      "assignment_reason": "existing inherited series binding",
+      "assignment_timestamp": "2026-07-29T22:30:00Z",
+      "provenance": {
+        "source": "series",
+        "reason": "continuity",
+        "basis": "previous series binding",
+        "selected_from": ["elevenlabs.rachel"],
+        "score": 0.79,
+        "tie_breaker": null
+      },
+      "user_notes": null,
+      "unavailable": false,
+      "history": []
+    }
+  ],
+  "history": [
+    {
+      "target_kind": "narrator",
+      "timestamp": "2026-07-28T20:00:00Z",
+      "reason": "initial series choice",
+      "source": "manual",
+      "manual_change": true,
+      "prior_locked": false,
+      "new_provider": "kokoro",
+      "new_provider_voice_id": "af_bella"
+    },
+    {
+      "target_kind": "character",
+      "canonical_character_id": "bobby-pendragon",
+      "timestamp": "2026-07-28T20:10:00Z",
+      "reason": "series binding imported",
+      "source": "planner",
+      "manual_change": false,
+      "prior_locked": true,
+      "previous_provider": "kokoro",
+      "previous_provider_voice_id": "af_bella",
+      "new_provider": "openai",
+      "new_provider_voice_id": "nova"
+    }
+  ],
+  "updated_at": "2026-07-29T23:10:00Z"
+}

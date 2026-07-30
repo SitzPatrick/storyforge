@@ -189,6 +189,50 @@ class CharacterProfileBundle:
     statistics: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class ReassignmentHistoryEntry:
+    target_kind: str
+    canonical_character_id: str | None = None
+    previous_provider: str | None = None
+    previous_provider_voice_id: str | None = None
+    new_provider: str | None = None
+    new_provider_voice_id: str | None = None
+    timestamp: str = ""
+    reason: str | None = None
+    source: str | None = None
+    prior_locked: bool | None = None
+    manual_change: bool | None = None
+
+
+@dataclass(frozen=True)
+class SeriesVoiceBinding:
+    target_kind: str
+    canonical_character_id: str | None = None
+    provider: str | None = None
+    provider_voice_id: str | None = None
+    voice_id: str | None = None
+    locked: bool = False
+    manual_override: bool = False
+    inherited: bool = True
+    assignment_confidence: float | None = None
+    assignment_reason: str | None = None
+    assignment_timestamp: str | None = None
+    provenance: AssignmentProvenance | None = None
+    user_notes: str | None = None
+    unavailable: bool = False
+    history: list[ReassignmentHistoryEntry] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SeriesBindings:
+    schema_version: int
+    series_id: str
+    narrator: SeriesVoiceBinding | None = None
+    bindings: list[SeriesVoiceBinding] = field(default_factory=list)
+    history: list[ReassignmentHistoryEntry] = field(default_factory=list)
+    updated_at: str | None = None
+
+
 def dataclass_to_dict(obj: Any) -> Any:
     if is_dataclass(obj):
         result: dict[str, Any] = {}
