@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: StoryForge security
+    url: https://github.com
+    about: Use the repository's private security reporting channel for vulnerabilities.

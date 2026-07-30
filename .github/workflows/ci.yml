@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Show package metadata
+        run: python -m pip show storyforge
+
+      - name: Compile sources
+        run: python -m compileall app storyforge
+
+      - name: Run tests
+        run: python -m pytest
+
+      - name: Run release audit
+        run: python -m storyforge.release_check --root .
+
+      - name: Run selective lint
+        run: |
+          ruff check storyforge tests/test_release_readiness.py
+          black --check storyforge tests/test_release_readiness.py

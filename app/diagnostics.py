@@ -13,14 +13,43 @@ from .kokoro_client import KokoroClient, KokoroError, KokoroVoiceError
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a Storyforge deployment diagnostic.")
-    parser.add_argument("--books-dir", default=os.getenv("STORYFORGE_BOOKS_DIR", "/books"), help="Mounted EPUB input directory")
-    parser.add_argument("--output-dir", default=os.getenv("STORYFORGE_OUTPUT_DIR", "/output"), help="Mounted audiobook output directory")
-    parser.add_argument("--log-dir", default=os.getenv("STORYFORGE_LOG_DIR", "/app/logs"), help="Mounted logs directory")
-    parser.add_argument("--temp-dir", default=os.getenv("STORYFORGE_TEMP_DIR", "/app/temp"), help="Mounted temp directory")
-    parser.add_argument("--api-url", default=os.getenv("KOKORO_API_URL", "http://Kokoro-FastAPI:8880/v1"), help="Kokoro OpenAI-compatible base URL")
-    parser.add_argument("--voice", default=os.getenv("KOKORO_VOICE", "af_bella"), help="Voice to validate")
-    parser.add_argument("--api-key", default=os.getenv("KOKORO_API_KEY", "not-needed"), help="API key placeholder")
-    parser.add_argument("--timeout", default=float(os.getenv("STORYFORGE_KOKORO_TIMEOUT", 120.0)), type=float, help="Request timeout")
+    parser.add_argument(
+        "--books-dir",
+        default=os.getenv("STORYFORGE_BOOKS_DIR", "/books"),
+        help="Mounted EPUB input directory",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=os.getenv("STORYFORGE_OUTPUT_DIR", "/output"),
+        help="Mounted audiobook output directory",
+    )
+    parser.add_argument(
+        "--log-dir",
+        default=os.getenv("STORYFORGE_LOG_DIR", "/app/logs"),
+        help="Mounted logs directory",
+    )
+    parser.add_argument(
+        "--temp-dir",
+        default=os.getenv("STORYFORGE_TEMP_DIR", "/app/temp"),
+        help="Mounted temp directory",
+    )
+    parser.add_argument(
+        "--api-url",
+        default=os.getenv("KOKORO_API_URL", "http://127.0.0.1:8880/v1"),
+        help="Kokoro OpenAI-compatible base URL",
+    )
+    parser.add_argument(
+        "--voice", default=os.getenv("KOKORO_VOICE", "af_bella"), help="Voice to validate"
+    )
+    parser.add_argument(
+        "--api-key", default=os.getenv("KOKORO_API_KEY", "not-needed"), help="API key placeholder"
+    )
+    parser.add_argument(
+        "--timeout",
+        default=float(os.getenv("STORYFORGE_KOKORO_TIMEOUT", 120.0)),
+        type=float,
+        help="Request timeout",
+    )
     return parser
 
 
@@ -47,13 +76,17 @@ def _check_binary(name: str) -> str:
         raise RuntimeError(f"Required binary not found on PATH: {name}")
     proc = subprocess.run([name, "-version"], capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"{name} exists but failed to run: {proc.stderr.strip() or proc.stdout.strip()}")
+        raise RuntimeError(
+            f"{name} exists but failed to run: {proc.stderr.strip() or proc.stdout.strip()}"
+        )
     return path
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    client = KokoroClient(base_url=args.api_url, api_key=args.api_key, voice=args.voice, timeout=args.timeout)
+    client = KokoroClient(
+        base_url=args.api_url, api_key=args.api_key, voice=args.voice, timeout=args.timeout
+    )
 
     checks = []
     _check_dir_readable(Path(args.books_dir))
@@ -78,7 +111,9 @@ def main(argv: list[str] | None = None) -> int:
 
     voices = client.list_voices()
     if args.voice not in voices and args.voice not in client.list_voices():
-        raise RuntimeError(f"Selected voice '{args.voice}' not accepted. Available voices: {', '.join(voices)}")
+        raise RuntimeError(
+            f"Selected voice '{args.voice}' not accepted. Available voices: {', '.join(voices)}"
+        )
     checks.append(f"voice accepted: {args.voice}")
 
     print("Storyforge diagnostics passed")

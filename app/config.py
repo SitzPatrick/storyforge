@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -11,8 +12,28 @@ from app.voice_planner.budget import BudgetConfig
 from app.voice_planner.conflicts import ConflictConfig
 from app.voice_planner.scoring import ScoringConfig
 
-
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
+
+
+def _load_config_data(config_path: str | Path | None = None) -> dict[str, Any]:
+    if config_path:
+        path = Path(config_path).expanduser()
+        if not path.exists():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+    env_path = os.getenv("STORYFORGE_CONFIG")
+    if env_path:
+        path = Path(env_path).expanduser()
+        if not path.exists():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+    if DEFAULT_CONFIG_PATH.exists():
+        return yaml.safe_load(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+
+    resource = importlib_resources.files("storyforge.defaults").joinpath("config.yaml")
+    return yaml.safe_load(resource.read_text(encoding="utf-8")) or {}
 
 
 @dataclass
@@ -93,11 +114,7 @@ class StoryforgeSettings:
 
 
 def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
-    path = Path(config_path).expanduser() if config_path else Path(os.getenv("STORYFORGE_CONFIG", DEFAULT_CONFIG_PATH))
-    if not path.exists():
-        raise FileNotFoundError(f"Config file not found: {path}")
-
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data = _load_config_data(config_path)
     voice_planner_raw = data.get("voice_planner") or {}
     scoring_raw = voice_planner_raw.get("scoring") or {}
     budget_raw = voice_planner_raw.get("budget") or {}
@@ -106,16 +123,20 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
     rejection_labels = {
         "characters": list((normalization_raw.get("rejection_labels") or {}).get("characters", [])),
         "places": list((normalization_raw.get("rejection_labels") or {}).get("places", [])),
-        "organizations": list((normalization_raw.get("rejection_labels") or {}).get("organizations", [])),
+        "organizations": list(
+            (normalization_raw.get("rejection_labels") or {}).get("organizations", [])
+        ),
     }
     aliases_raw = normalization_raw.get("aliases") or {}
     aliases = {
         "characters": {str(k): list(v) for k, v in (aliases_raw.get("characters") or {}).items()},
         "places": {str(k): list(v) for k, v in (aliases_raw.get("places") or {}).items()},
-        "organizations": {str(k): list(v) for k, v in (aliases_raw.get("organizations") or {}).items()},
+        "organizations": {
+            str(k): list(v) for k, v in (aliases_raw.get("organizations") or {}).items()
+        },
     }
 
-    return StoryforgeSettings(
+    settings = StoryforgeSettings(
         paths=PathSettings(
             books_dir=_as_path(data, ("paths", "books_dir")),
             output_dir=_as_path(data, ("paths", "output_dir")),
@@ -129,29 +150,44 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             voice=_as_str(data, ("kokoro", "voice"), default="af_heart"),
             speed=float(_as_number(data, ("kokoro", "speed"), default=1.0)),
             timeout_seconds=float(_as_number(data, ("kokoro", "timeout_seconds"), default=120.0)),
-            retry_delays_seconds=[float(v) for v in _as_sequence(data, ("kokoro", "retry_delays_seconds"), default=[2, 5, 10])],
+            retry_delays_seconds=[
+                float(v)
+                for v in _as_sequence(data, ("kokoro", "retry_delays_seconds"), default=[2, 5, 10])
+            ],
         ),
         conversion=ConversionSettings(
             chunk_chars=int(_as_number(data, ("conversion", "chunk_chars"), default=1200)),
-            chapter_filename_format=_as_str(data, ("conversion", "chapter_filename_format"), default="Chapter {chapter:03d}.wav"),
+            chapter_filename_format=_as_str(
+                data, ("conversion", "chapter_filename_format"), default="Chapter {chapter:03d}.wav"
+            ),
             m4b_bitrate=_as_str(data, ("conversion", "m4b_bitrate"), default="128k"),
             parallel_workers=int(_as_number(data, ("conversion", "parallel_workers"), default=1)),
-            cleanup_temp_on_success=bool(_as_bool(data, ("conversion", "cleanup_temp_on_success"), default=True)),
-            preserve_failed_temp=bool(_as_bool(data, ("conversion", "preserve_failed_temp"), default=True)),
-            resume_on_startup=bool(_as_bool(data, ("conversion", "resume_on_startup"), default=True)),
+            cleanup_temp_on_success=bool(
+                _as_bool(data, ("conversion", "cleanup_temp_on_success"), default=True)
+            ),
+            preserve_failed_temp=bool(
+                _as_bool(data, ("conversion", "preserve_failed_temp"), default=True)
+            ),
+            resume_on_startup=bool(
+                _as_bool(data, ("conversion", "resume_on_startup"), default=True)
+            ),
         ),
         analysis=AnalysisSettings(
             llm_provider=_as_str(data, ("analysis", "llm_provider"), default="ollama"),
             ollama_url=_as_str(data, ("analysis", "ollama_url"), default="http://127.0.0.1:11434"),
             ollama_model=_as_str(data, ("analysis", "ollama_model"), default="llama3.1"),
-            analysis_chunk_size=int(_as_number(data, ("analysis", "analysis_chunk_size"), default=6000)),
+            analysis_chunk_size=int(
+                _as_number(data, ("analysis", "analysis_chunk_size"), default=6000)
+            ),
             cache_enabled=bool(_as_bool(data, ("analysis", "cache_enabled"), default=True)),
             cache_directory=_as_str(data, ("analysis", "cache_directory"), default="analysis"),
         ),
         normalization=NormalizationSettings(
             enabled=bool(_as_bool(normalization_raw, ("enabled",), default=True)),
             output_dir_name=str(normalization_raw.get("output_dir_name", "analysis_normalized")),
-            deduplicate_dialogue=bool(_as_bool(normalization_raw, ("deduplicate_dialogue",), default=True)),
+            deduplicate_dialogue=bool(
+                _as_bool(normalization_raw, ("deduplicate_dialogue",), default=True)
+            ),
             minimum_confidence=float(normalization_raw.get("minimum_confidence", 0.5)),
             rejection_labels=rejection_labels,
             aliases=aliases,
@@ -159,19 +195,87 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
         voice_planner=VoicePlannerSettings(
             schema_version=int(_as_number(data, ("voice_planner", "schema_version"), default=1)),
             enabled=bool(_as_bool(data, ("voice_planner", "enabled"), default=True)),
-            registry_path=_as_str(data, ("voice_planner", "registry_path"), default="voices/registry.json"),
-            registry_dir_name=_as_str(data, ("voice_planner", "registry_dir_name"), default="voices"),
+            registry_path=_as_str(
+                data, ("voice_planner", "registry_path"), default="voices/registry.json"
+            ),
+            registry_dir_name=_as_str(
+                data, ("voice_planner", "registry_dir_name"), default="voices"
+            ),
             series_dir_name=_as_str(data, ("voice_planner", "series_dir_name"), default="series"),
             books_dir_name=_as_str(data, ("voice_planner", "books_dir_name"), default="books"),
-            voice_plan_filename=_as_str(data, ("voice_planner", "voice_plan_filename"), default="voice_plan.json"),
-            report_filename=_as_str(data, ("voice_planner", "report_filename"), default="voice_assignment_report.json"),
-            preserve_user_edits=bool(_as_bool(data, ("voice_planner", "preserve_user_edits"), default=True)),
-            dry_run_default=bool(_as_bool(data, ("voice_planner", "dry_run_default"), default=True)),
+            voice_plan_filename=_as_str(
+                data, ("voice_planner", "voice_plan_filename"), default="voice_plan.json"
+            ),
+            report_filename=_as_str(
+                data, ("voice_planner", "report_filename"), default="voice_assignment_report.json"
+            ),
+            preserve_user_edits=bool(
+                _as_bool(data, ("voice_planner", "preserve_user_edits"), default=True)
+            ),
+            dry_run_default=bool(
+                _as_bool(data, ("voice_planner", "dry_run_default"), default=True)
+            ),
             scoring=ScoringConfig.from_mapping(scoring_raw),
             budget=BudgetConfig.from_mapping(budget_raw),
             conflicts=ConflictConfig.from_mapping(conflicts_raw),
         ),
     )
+
+    _apply_environment_overrides(settings)
+    return settings
+
+
+def _apply_environment_overrides(settings: StoryforgeSettings) -> None:
+    settings.paths.books_dir = _env_path("STORYFORGE_BOOKS_DIR", settings.paths.books_dir)
+    settings.paths.output_dir = _env_path("STORYFORGE_OUTPUT_DIR", settings.paths.output_dir)
+    settings.paths.temp_dir = _env_path("STORYFORGE_TEMP_DIR", settings.paths.temp_dir)
+    settings.paths.log_dir = _env_path("STORYFORGE_LOG_DIR", settings.paths.log_dir)
+    settings.kokoro.api_url = _env_str("KOKORO_API_URL", settings.kokoro.api_url)
+    settings.kokoro.api_key = _env_str("KOKORO_API_KEY", settings.kokoro.api_key)
+    settings.kokoro.model = _env_str("KOKORO_MODEL", settings.kokoro.model)
+    settings.kokoro.voice = _env_str("KOKORO_VOICE", settings.kokoro.voice)
+    settings.kokoro.speed = _env_float("KOKORO_SPEED", settings.kokoro.speed)
+    settings.kokoro.timeout_seconds = _env_float(
+        "STORYFORGE_KOKORO_TIMEOUT", settings.kokoro.timeout_seconds
+    )
+    settings.conversion.chunk_chars = _env_int(
+        "STORYFORGE_CHUNK_CHARS", settings.conversion.chunk_chars
+    )
+    settings.analysis.ollama_url = _env_str("STORYFORGE_OLLAMA_URL", settings.analysis.ollama_url)
+    settings.analysis.ollama_model = _env_str(
+        "STORYFORGE_OLLAMA_MODEL", settings.analysis.ollama_model
+    )
+    settings.analysis.analysis_chunk_size = _env_int(
+        "STORYFORGE_ANALYSIS_CHUNK_SIZE", settings.analysis.analysis_chunk_size
+    )
+
+
+def _env_str(name: str, current: str) -> str:
+    value = os.getenv(name)
+    if value in {None, ""}:
+        return current
+    return value
+
+
+def _env_float(name: str, current: float) -> float:
+    value = os.getenv(name)
+    if value in {None, ""}:
+        return current
+    return float(value)
+
+
+def _env_int(name: str, current: int) -> int:
+    value = os.getenv(name)
+    if value in {None, ""}:
+        return current
+    return int(value)
+
+
+def _env_path(name: str, current: Path) -> Path:
+    value = os.getenv(name)
+    if value in {None, ""}:
+        return current
+    return Path(value).expanduser()
 
 
 def _lookup(data: dict[str, Any], keys: Sequence[str]) -> Any:
@@ -199,7 +303,9 @@ def _as_str(data: dict[str, Any], keys: Sequence[str], default: str | None = Non
     return str(value)
 
 
-def _as_number(data: dict[str, Any], keys: Sequence[str], default: float | int | None = None) -> float | int:
+def _as_number(
+    data: dict[str, Any], keys: Sequence[str], default: float | int | None = None
+) -> float | int:
     value = _lookup(data, keys)
     if value is None:
         if default is None:
@@ -217,7 +323,9 @@ def _as_bool(data: dict[str, Any], keys: Sequence[str], default: bool | None = N
     return bool(value)
 
 
-def _as_sequence(data: dict[str, Any], keys: Sequence[str], default: Sequence[Any] | None = None) -> Sequence[Any]:
+def _as_sequence(
+    data: dict[str, Any], keys: Sequence[str], default: Sequence[Any] | None = None
+) -> Sequence[Any]:
     value = _lookup(data, keys)
     if value is None:
         if default is None:

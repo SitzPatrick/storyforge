@@ -81,8 +81,12 @@ class ChapterAssembler:
                 failed_chapters=0,
                 total_source_render_units=len(manifest.render_units),
                 assembled_render_units=0,
-                blocked_units=sum(1 for unit in manifest.render_units if unit.validation_status == "blocked"),
-                omitted_units=sum(1 for unit in manifest.render_units if unit.validation_status == "skipped"),
+                blocked_units=sum(
+                    1 for unit in manifest.render_units if unit.validation_status == "blocked"
+                ),
+                omitted_units=sum(
+                    1 for unit in manifest.render_units if unit.validation_status == "skipped"
+                ),
                 missing_artifacts=0,
                 invalid_artifacts=0,
                 total_speech_duration_seconds=0.0,
@@ -129,8 +133,12 @@ class ChapterAssembler:
                 completed_chapters += 1
                 newly_assembled_chapters += 1
                 assembled_render_units += len(result.render_unit_ids)
-                total_speech_duration_seconds += result.speech_frame_count / self.config.sample_rate_hz
-                total_inserted_silence_duration_seconds += result.silence_frame_count / self.config.sample_rate_hz
+                total_speech_duration_seconds += (
+                    result.speech_frame_count / self.config.sample_rate_hz
+                )
+                total_inserted_silence_duration_seconds += (
+                    result.silence_frame_count / self.config.sample_rate_hz
+                )
                 total_chapter_duration_seconds += result.frame_count / self.config.sample_rate_hz
                 bytes_written += result.bytes_written
                 continue
@@ -141,8 +149,12 @@ class ChapterAssembler:
                 completed_chapters += 1
                 newly_assembled_chapters += 1
                 assembled_render_units += len(result.render_unit_ids)
-                total_speech_duration_seconds += result.speech_frame_count / self.config.sample_rate_hz
-                total_inserted_silence_duration_seconds += result.silence_frame_count / self.config.sample_rate_hz
+                total_speech_duration_seconds += (
+                    result.speech_frame_count / self.config.sample_rate_hz
+                )
+                total_inserted_silence_duration_seconds += (
+                    result.silence_frame_count / self.config.sample_rate_hz
+                )
                 total_chapter_duration_seconds += result.frame_count / self.config.sample_rate_hz
                 bytes_written += result.bytes_written
             else:
@@ -150,10 +162,30 @@ class ChapterAssembler:
 
             blocked_units += len(result.blocked_unit_ids)
             omitted_units += len(result.omitted_unit_ids)
-            missing_artifacts += sum(1 for status in result.segment_statuses if status.failure and status.failure.failure_type in {AssemblyFailureType.SEGMENT_MISSING, AssemblyFailureType.SEGMENT_SIDECAR_MISSING})
-            invalid_artifacts += sum(1 for status in result.segment_statuses if status.failure and status.failure.failure_type not in {AssemblyFailureType.SEGMENT_MISSING, AssemblyFailureType.SEGMENT_SIDECAR_MISSING})
+            missing_artifacts += sum(
+                1
+                for status in result.segment_statuses
+                if status.failure
+                and status.failure.failure_type
+                in {
+                    AssemblyFailureType.SEGMENT_MISSING,
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                }
+            )
+            invalid_artifacts += sum(
+                1
+                for status in result.segment_statuses
+                if status.failure
+                and status.failure.failure_type
+                not in {
+                    AssemblyFailureType.SEGMENT_MISSING,
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                }
+            )
 
-        completion_status = self._completion_status(completed_chapters, blocked_chapters, partial_chapters, failed_chapters, warnings)
+        completion_status = self._completion_status(
+            completed_chapters, blocked_chapters, partial_chapters, failed_chapters, warnings
+        )
         report = ChapterAssemblyReport(
             book_id=manifest.book_id,
             manifest_content_hash=manifest.manifest_content_hash,
@@ -173,7 +205,9 @@ class ChapterAssembler:
             missing_artifacts=missing_artifacts,
             invalid_artifacts=invalid_artifacts,
             total_speech_duration_seconds=round(total_speech_duration_seconds, 6),
-            total_inserted_silence_duration_seconds=round(total_inserted_silence_duration_seconds, 6),
+            total_inserted_silence_duration_seconds=round(
+                total_inserted_silence_duration_seconds, 6
+            ),
             total_chapter_duration_seconds=round(total_chapter_duration_seconds, 6),
             bytes_written=bytes_written,
             warnings=tuple(dict.fromkeys(warnings)),
@@ -200,9 +234,37 @@ class ChapterAssembler:
                     chapter_order=group.chapter_order,
                     chapter_title=group.chapter_title,
                     source_section_id=group.source_section_id,
-                    output_artifact_relative_path=self._chapter_relative_path(group, build_chapter_assembly_id(book_id=manifest.book_id, chapter_id=group.chapter_id, chapter_order=group.chapter_order, assembly_contract_version=self.config.assembly_contract_version)),
-                    output_artifact_path=str(self._chapter_absolute_path(group, build_chapter_assembly_id(book_id=manifest.book_id, chapter_id=group.chapter_id, chapter_order=group.chapter_order, assembly_contract_version=self.config.assembly_contract_version))),
-                    sidecar_path=str(self._chapter_sidecar_path(group, build_chapter_assembly_id(book_id=manifest.book_id, chapter_id=group.chapter_id, chapter_order=group.chapter_order, assembly_contract_version=self.config.assembly_contract_version))),
+                    output_artifact_relative_path=self._chapter_relative_path(
+                        group,
+                        build_chapter_assembly_id(
+                            book_id=manifest.book_id,
+                            chapter_id=group.chapter_id,
+                            chapter_order=group.chapter_order,
+                            assembly_contract_version=self.config.assembly_contract_version,
+                        ),
+                    ),
+                    output_artifact_path=str(
+                        self._chapter_absolute_path(
+                            group,
+                            build_chapter_assembly_id(
+                                book_id=manifest.book_id,
+                                chapter_id=group.chapter_id,
+                                chapter_order=group.chapter_order,
+                                assembly_contract_version=self.config.assembly_contract_version,
+                            ),
+                        )
+                    ),
+                    sidecar_path=str(
+                        self._chapter_sidecar_path(
+                            group,
+                            build_chapter_assembly_id(
+                                book_id=manifest.book_id,
+                                chapter_id=group.chapter_id,
+                                chapter_order=group.chapter_order,
+                                assembly_contract_version=self.config.assembly_contract_version,
+                            ),
+                        )
+                    ),
                     chapter_input_hash="",
                     render_unit_ids=(),
                     status="blocked",
@@ -220,7 +282,11 @@ class ChapterAssembler:
                     invalid_unit_ids=(),
                     segment_statuses=(),
                 )
-            failure = AssemblyFailure(AssemblyFailureType.CHAPTER_MAPPING_MISSING, f"chapter {group.chapter_id} has no render units", chapter_id=group.chapter_id)
+            failure = AssemblyFailure(
+                AssemblyFailureType.CHAPTER_MAPPING_MISSING,
+                f"chapter {group.chapter_id} has no render units",
+                chapter_id=group.chapter_id,
+            )
             return self._blocked_result(group, [], [], [], [], warnings=("empty chapter blocked",))
 
         chapter_assembly_id = build_chapter_assembly_id(
@@ -232,7 +298,14 @@ class ChapterAssembler:
         output_relative_path = self._chapter_relative_path(group, chapter_assembly_id)
         output_path = self._chapter_absolute_path(group, chapter_assembly_id)
         sidecar_path = self._chapter_sidecar_path(group, chapter_assembly_id)
-        if self._is_cache_hit(group, ordered_units, chapter_assembly_id, output_relative_path, output_path, sidecar_path):
+        if self._is_cache_hit(
+            group,
+            ordered_units,
+            chapter_assembly_id,
+            output_relative_path,
+            output_path,
+            sidecar_path,
+        ):
             chapter_input_hash = self._chapter_input_hash(group, ordered_units, chapter_assembly_id)
             sidecar = load_chapter_sidecar(sidecar_path)
             return ChapterAssemblyResult(
@@ -283,24 +356,74 @@ class ChapterAssembler:
                 continue
             if status.status != "ready":
                 failure = status.failure
-                if failure and failure.failure_type in {AssemblyFailureType.SEGMENT_MISSING, AssemblyFailureType.SEGMENT_SIDECAR_MISSING}:
+                if failure and failure.failure_type in {
+                    AssemblyFailureType.SEGMENT_MISSING,
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                }:
                     missing_unit_ids.append(unit.render_unit_id)
                 else:
                     invalid_unit_ids.append(unit.render_unit_id)
                 errors.extend(status.warnings)
                 continue
-            ready_units.append((unit, status.artifact_path, status.sidecar_path, status.audio_content_hash, status.synthesis_input_hash, status.cache_key, status.frame_count, status.duration_seconds))
+            ready_units.append(
+                (
+                    unit,
+                    status.artifact_path,
+                    status.sidecar_path,
+                    status.audio_content_hash,
+                    status.synthesis_input_hash,
+                    status.cache_key,
+                    status.frame_count,
+                    status.duration_seconds,
+                )
+            )
 
         if blocked_unit_ids:
-            return self._blocked_result(group, blocked_unit_ids, omitted_unit_ids, missing_unit_ids, segment_statuses, warnings=tuple(warnings), errors=tuple(errors))
+            return self._blocked_result(
+                group,
+                blocked_unit_ids,
+                omitted_unit_ids,
+                missing_unit_ids,
+                segment_statuses,
+                warnings=tuple(warnings),
+                errors=tuple(errors),
+            )
         if ready_units and len(ready_units) != len(ordered_units) - len(omitted_unit_ids):
-            return self._blocked_result(group, blocked_unit_ids, omitted_unit_ids, missing_unit_ids, segment_statuses, warnings=tuple(warnings), errors=tuple(errors))
+            return self._blocked_result(
+                group,
+                blocked_unit_ids,
+                omitted_unit_ids,
+                missing_unit_ids,
+                segment_statuses,
+                warnings=tuple(warnings),
+                errors=tuple(errors),
+            )
         if not ready_units and self.config.empty_chapter_policy != "silence":
-            failure = AssemblyFailure(AssemblyFailureType.CHAPTER_MAPPING_MISSING, f"chapter {group.chapter_id} has no usable segments", chapter_id=group.chapter_id)
-            return self._blocked_result(group, blocked_unit_ids, omitted_unit_ids, missing_unit_ids, segment_statuses, warnings=tuple(warnings), errors=tuple(errors + [failure.message]))
+            failure = AssemblyFailure(
+                AssemblyFailureType.CHAPTER_MAPPING_MISSING,
+                f"chapter {group.chapter_id} has no usable segments",
+                chapter_id=group.chapter_id,
+            )
+            return self._blocked_result(
+                group,
+                blocked_unit_ids,
+                omitted_unit_ids,
+                missing_unit_ids,
+                segment_statuses,
+                warnings=tuple(warnings),
+                errors=tuple(errors + [failure.message]),
+            )
 
         chapter_input_hash = self._chapter_input_hash(group, ordered_units, chapter_assembly_id)
-        if self._is_cache_hit(group, ordered_units, chapter_assembly_id, output_relative_path, output_path, sidecar_path, chapter_input_hash=chapter_input_hash):
+        if self._is_cache_hit(
+            group,
+            ordered_units,
+            chapter_assembly_id,
+            output_relative_path,
+            output_path,
+            sidecar_path,
+            chapter_input_hash=chapter_input_hash,
+        ):
             sidecar = load_chapter_sidecar(sidecar_path)
             return ChapterAssemblyResult(
                 chapter_assembly_id=chapter_assembly_id,
@@ -330,7 +453,22 @@ class ChapterAssembler:
                 segment_statuses=tuple(segment_statuses),
             )
 
-        chapter_result = self._render_chapter(group, ordered_units, segment_statuses, chapter_assembly_id, output_relative_path, output_path, sidecar_path, chapter_input_hash, warnings, errors, blocked_unit_ids, omitted_unit_ids, missing_unit_ids, invalid_unit_ids)
+        chapter_result = self._render_chapter(
+            group,
+            ordered_units,
+            segment_statuses,
+            chapter_assembly_id,
+            output_relative_path,
+            output_path,
+            sidecar_path,
+            chapter_input_hash,
+            warnings,
+            errors,
+            blocked_unit_ids,
+            omitted_unit_ids,
+            missing_unit_ids,
+            invalid_unit_ids,
+        )
         return chapter_result
 
     def _render_chapter(
@@ -353,9 +491,11 @@ class ChapterAssembler:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         audio_tmp = self._render_temp_path(output_path)
         sidecar_tmp = self._render_temp_path(sidecar_path)
-        previous_audio = self._backup_existing(output_path)
-        previous_sidecar = self._backup_existing(sidecar_path)
+        previous_audio: Path | None = None
+        previous_sidecar: Path | None = None
         try:
+            previous_audio = self._backup_existing(output_path)
+            previous_sidecar = self._backup_existing(sidecar_path)
             rendered = self._assemble_audio_frames(group, ordered_units)
             audio_tmp.write_bytes(rendered["audio_bytes"])
             validate_rendered_audio(
@@ -378,10 +518,18 @@ class ChapterAssembler:
                 assembler_version=self.config.assembler_version,
                 chapter_input_hash=chapter_input_hash,
                 ordered_render_unit_ids=tuple(unit.render_unit_id for unit in ordered_units),
-                ordered_segment_synthesis_input_hashes=tuple(item.synthesis_input_hash for item in rendered["segment_status_items"]),
-                ordered_segment_audio_content_hashes=tuple(item.audio_content_hash for item in rendered["segment_status_items"]),
-                ordered_segment_cache_keys=tuple(item.cache_key for item in rendered["segment_status_items"]),
-                ordered_segment_artifact_relative_paths=tuple(item.artifact_relative_path for item in rendered["segment_status_items"]),
+                ordered_segment_synthesis_input_hashes=tuple(
+                    item.synthesis_input_hash for item in rendered["segment_status_items"]
+                ),
+                ordered_segment_audio_content_hashes=tuple(
+                    item.audio_content_hash for item in rendered["segment_status_items"]
+                ),
+                ordered_segment_cache_keys=tuple(
+                    item.cache_key for item in rendered["segment_status_items"]
+                ),
+                ordered_segment_artifact_relative_paths=tuple(
+                    item.artifact_relative_path for item in rendered["segment_status_items"]
+                ),
                 output_artifact_relative_path=output_relative_path,
                 output_format=self.config.output_format,
                 sample_rate_hz=self.config.sample_rate_hz,
@@ -430,9 +578,22 @@ class ChapterAssembler:
                 invalid_unit_ids=tuple(invalid_unit_ids),
                 segment_statuses=tuple(segment_statuses),
             )
-        except Exception as exc:  # noqa: BLE001
-            self._restore_backups(output_path, sidecar_path, previous_audio, previous_sidecar)
-            failure = AssemblyFailure(AssemblyFailureType.UNKNOWN_FAILURE, f"failed to assemble chapter {group.chapter_id}: {exc}", chapter_id=group.chapter_id, details={"exception": type(exc).__name__})
+        except Exception as exc:
+            if previous_audio is not None or previous_sidecar is not None:
+                if previous_sidecar is None and previous_audio is not None:
+                    if output_path.exists():
+                        output_path.unlink()
+                    os.replace(previous_audio, output_path)
+                else:
+                    self._restore_backups(
+                        output_path, sidecar_path, previous_audio, previous_sidecar
+                    )
+            failure = AssemblyFailure(
+                AssemblyFailureType.UNKNOWN_FAILURE,
+                f"failed to assemble chapter {group.chapter_id}: {exc}",
+                chapter_id=group.chapter_id,
+                details={"exception": type(exc).__name__},
+            )
             return ChapterAssemblyResult(
                 chapter_assembly_id=chapter_assembly_id,
                 chapter_id=group.chapter_id,
@@ -465,7 +626,9 @@ class ChapterAssembler:
                 if tmp.exists():
                     tmp.unlink()
 
-    def _assemble_audio_frames(self, group: ChapterGroup, ordered_units: list[Any]) -> dict[str, Any]:
+    def _assemble_audio_frames(
+        self, group: ChapterGroup, ordered_units: list[Any]
+    ) -> dict[str, Any]:
         frames: list[bytes] = []
         segment_status_items: list[Any] = []
         speech_frame_count = 0
@@ -479,22 +642,47 @@ class ChapterAssembler:
             if index < len(ordered_units) - 1:
                 next_unit = ordered_units[index + 1]
                 silence_ms = self._silence_for_transition(unit, next_unit)
-                silence_count = silence_frame_count(self.config.sample_rate_hz, silence_ms, rounding=self.config.silence_rounding)
+                silence_count = silence_frame_count(
+                    self.config.sample_rate_hz, silence_ms, rounding=self.config.silence_rounding
+                )
                 silence_frame_count_total += silence_count
                 if silence_count:
-                    frames.append(generate_silence_bytes(silence_count, self.config.channel_count, self.config.sample_width_bytes))
+                    frames.append(
+                        generate_silence_bytes(
+                            silence_count, self.config.channel_count, self.config.sample_width_bytes
+                        )
+                    )
             previous_unit = unit
-        prefix_silence = silence_frame_count(self.config.sample_rate_hz, self.config.spacing.chapter_start_ms, rounding=self.config.silence_rounding)
-        suffix_silence = silence_frame_count(self.config.sample_rate_hz, self.config.spacing.chapter_end_ms, rounding=self.config.silence_rounding)
+        prefix_silence = silence_frame_count(
+            self.config.sample_rate_hz,
+            self.config.spacing.chapter_start_ms,
+            rounding=self.config.silence_rounding,
+        )
+        suffix_silence = silence_frame_count(
+            self.config.sample_rate_hz,
+            self.config.spacing.chapter_end_ms,
+            rounding=self.config.silence_rounding,
+        )
         if prefix_silence:
             silence_frame_count_total += prefix_silence
-            frames.insert(0, generate_silence_bytes(prefix_silence, self.config.channel_count, self.config.sample_width_bytes))
+            frames.insert(
+                0,
+                generate_silence_bytes(
+                    prefix_silence, self.config.channel_count, self.config.sample_width_bytes
+                ),
+            )
         if suffix_silence:
             silence_frame_count_total += suffix_silence
-            frames.append(generate_silence_bytes(suffix_silence, self.config.channel_count, self.config.sample_width_bytes))
+            frames.append(
+                generate_silence_bytes(
+                    suffix_silence, self.config.channel_count, self.config.sample_width_bytes
+                )
+            )
         audio_bytes = self._pack_wav_bytes(b"".join(frames))
         duration_seconds = len(audio_bytes)  # placeholder replaced below
-        duration_seconds = (speech_frame_count + silence_frame_count_total) / self.config.sample_rate_hz
+        duration_seconds = (
+            speech_frame_count + silence_frame_count_total
+        ) / self.config.sample_rate_hz
         audio_content_hash = sha256(audio_bytes).hexdigest()
         return {
             "audio_bytes": audio_bytes,
@@ -510,27 +698,101 @@ class ChapterAssembler:
         artifact_path = self._segment_root / unit.output_artifact_key
         sidecar_path = Path(str(artifact_path) + ".json")
         if not artifact_path.exists():
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_MISSING, f"missing segment audio: {artifact_path}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_MISSING,
+                    f"missing segment audio: {artifact_path}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if not sidecar_path.exists():
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_SIDECAR_MISSING, f"missing segment sidecar: {sidecar_path}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                    f"missing segment sidecar: {sidecar_path}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         try:
             entry = load_render_sidecar(sidecar_path)
         except Exception as exc:  # noqa: BLE001
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_SIDECAR_CORRUPT, f"corrupt segment sidecar: {sidecar_path}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id, details={"exception": type(exc).__name__})) from exc
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_SIDECAR_CORRUPT,
+                    f"corrupt segment sidecar: {sidecar_path}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                    details={"exception": type(exc).__name__},
+                )
+            ) from exc
         if entry is None:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_SIDECAR_MISSING, f"missing segment sidecar: {sidecar_path}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                    f"missing segment sidecar: {sidecar_path}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.render_unit_id != unit.render_unit_id:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_HASH_MISMATCH, f"segment render unit mismatch: {entry.render_unit_id} != {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_HASH_MISMATCH,
+                    f"segment render unit mismatch: {entry.render_unit_id} != {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.synthesis_input_hash != unit.synthesis_input_hash:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_HASH_MISMATCH, f"segment synthesis input mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_HASH_MISMATCH,
+                    f"segment synthesis input mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.artifact_relative_path != unit.output_artifact_key:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_HASH_MISMATCH, f"segment artifact path mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
-        if entry.provider != unit.assigned_provider or entry.provider_voice_id != unit.assigned_provider_voice_id:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_HASH_MISMATCH, f"segment provider mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_HASH_MISMATCH,
+                    f"segment artifact path mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
+        if (
+            entry.provider != unit.assigned_provider
+            or entry.provider_voice_id != unit.assigned_provider_voice_id
+        ):
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_HASH_MISMATCH,
+                    f"segment provider mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.renderer_contract_version != self.manifest.renderer_contract_version:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_HASH_MISMATCH, f"segment renderer contract mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_HASH_MISMATCH,
+                    f"segment renderer contract mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.output_format != self.config.output_format:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.INCOMPATIBLE_SEGMENT_FORMAT, f"segment output format mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.INCOMPATIBLE_SEGMENT_FORMAT,
+                    f"segment output format mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         expected_cache_key = build_render_cache_key(
             {
                 "render_unit_id": unit.render_unit_id,
@@ -548,9 +810,23 @@ class ChapterAssembler:
             }
         )
         if entry.cache_key != expected_cache_key:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.CACHE_CORRUPTION, f"segment cache key mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.CACHE_CORRUPTION,
+                    f"segment cache key mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.validation_result != "passed":
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.INVALID_SEGMENT_AUDIO, f"segment validation failed: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.INVALID_SEGMENT_AUDIO,
+                    f"segment validation failed: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         try:
             inspection = inspect_wav_file(
                 artifact_path,
@@ -560,11 +836,33 @@ class ChapterAssembler:
                 maximum_duration_seconds=3600.0,
             )
         except Exception as exc:  # noqa: BLE001
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.INVALID_SEGMENT_AUDIO, f"invalid segment audio: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id, details={"exception": type(exc).__name__})) from exc
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.INVALID_SEGMENT_AUDIO,
+                    f"invalid segment audio: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                    details={"exception": type(exc).__name__},
+                )
+            ) from exc
         if inspection.audio_content_hash != entry.audio_content_hash:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_HASH_MISMATCH, f"segment audio hash mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_HASH_MISMATCH,
+                    f"segment audio hash mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         if entry.output_format != self.config.output_format:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.INCOMPATIBLE_SEGMENT_FORMAT, f"segment output format mismatch: {unit.render_unit_id}", chapter_id=unit.scene_id, render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.INCOMPATIBLE_SEGMENT_FORMAT,
+                    f"segment output format mismatch: {unit.render_unit_id}",
+                    chapter_id=unit.scene_id,
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         return type(
             "ValidatedSegment",
             (),
@@ -584,15 +882,41 @@ class ChapterAssembler:
 
     def _validate_segment(self, unit: Any) -> ChapterSegmentStatus:
         if unit.validation_status == "skipped":
-            return ChapterSegmentStatus(render_unit_id=unit.render_unit_id, status="omitted", warnings=("manifest unit omitted before assembly",))
+            return ChapterSegmentStatus(
+                render_unit_id=unit.render_unit_id,
+                status="omitted",
+                warnings=("manifest unit omitted before assembly",),
+            )
         if unit.validation_status == "blocked":
-            return ChapterSegmentStatus(render_unit_id=unit.render_unit_id, status="blocked", failure=AssemblyFailure(AssemblyFailureType.MANIFEST_BLOCKED, unit.blocked_reason or "manifest unit blocked", render_unit_id=unit.render_unit_id), warnings=(unit.blocked_reason or "manifest unit blocked",))
+            return ChapterSegmentStatus(
+                render_unit_id=unit.render_unit_id,
+                status="blocked",
+                failure=AssemblyFailure(
+                    AssemblyFailureType.MANIFEST_BLOCKED,
+                    unit.blocked_reason or "manifest unit blocked",
+                    render_unit_id=unit.render_unit_id,
+                ),
+                warnings=(unit.blocked_reason or "manifest unit blocked",),
+            )
         try:
             validated = self._load_segment_inspection(unit)
         except ChapterAssemblyError as exc:
             failure = exc.failure
-            status = "missing" if failure.failure_type in {AssemblyFailureType.SEGMENT_MISSING, AssemblyFailureType.SEGMENT_SIDECAR_MISSING} else "invalid"
-            return ChapterSegmentStatus(render_unit_id=unit.render_unit_id, status=status, failure=failure, warnings=(failure.message,))
+            status = (
+                "missing"
+                if failure.failure_type
+                in {
+                    AssemblyFailureType.SEGMENT_MISSING,
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                }
+                else "invalid"
+            )
+            return ChapterSegmentStatus(
+                render_unit_id=unit.render_unit_id,
+                status=status,
+                failure=failure,
+                warnings=(failure.message,),
+            )
         return ChapterSegmentStatus(
             render_unit_id=unit.render_unit_id,
             status="ready",
@@ -608,9 +932,15 @@ class ChapterAssembler:
     def _resolve_group_units(self, group: ChapterGroup) -> list[Any]:
         units_by_id = {unit.render_unit_id: unit for unit in self.manifest.render_units}
         if group.render_unit_ids:
-            units = [units_by_id[unit_id] for unit_id in group.render_unit_ids if unit_id in units_by_id]
+            units = [
+                units_by_id[unit_id] for unit_id in group.render_unit_ids if unit_id in units_by_id
+            ]
         else:
-            units = [unit for unit in self.manifest.render_units if int(unit.source_order[0]) == group.chapter_order]
+            units = [
+                unit
+                for unit in self.manifest.render_units
+                if int(unit.source_order[0]) == group.chapter_order
+            ]
         units = [unit for unit in units if unit.validation_status != "skipped"]
         units.sort(key=self._unit_sort_key)
         return units
@@ -618,32 +948,76 @@ class ChapterAssembler:
     def _build_chapter_groups(self) -> tuple[ChapterGroup, ...]:
         manifest = self.manifest
         if self.chapter_structure:
-            chapters = self.chapter_structure.get("chapters") or self.chapter_structure.get("sections") or []
+            chapters = (
+                self.chapter_structure.get("chapters")
+                or self.chapter_structure.get("sections")
+                or []
+            )
             if not chapters:
-                raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.CHAPTER_MAPPING_MISSING, "chapter structure did not include chapters or sections"))
+                raise ChapterAssemblyError(
+                    AssemblyFailure(
+                        AssemblyFailureType.CHAPTER_MAPPING_MISSING,
+                        "chapter structure did not include chapters or sections",
+                    )
+                )
             groups: list[ChapterGroup] = []
             seen_ids: set[str] = set()
             assigned_units: set[str] = set()
             for index, entry in enumerate(chapters, start=1):
-                chapter_id = str(entry.get("chapter_id") or entry.get("section_id") or entry.get("id") or f"chapter-{index}")
+                chapter_id = str(
+                    entry.get("chapter_id")
+                    or entry.get("section_id")
+                    or entry.get("id")
+                    or f"chapter-{index}"
+                )
                 if chapter_id in seen_ids:
-                    raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.DUPLICATE_CHAPTER_ID, f"duplicate chapter id: {chapter_id}", chapter_id=chapter_id))
+                    raise ChapterAssemblyError(
+                        AssemblyFailure(
+                            AssemblyFailureType.DUPLICATE_CHAPTER_ID,
+                            f"duplicate chapter id: {chapter_id}",
+                            chapter_id=chapter_id,
+                        )
+                    )
                 seen_ids.add(chapter_id)
-                chapter_order = int(entry.get("chapter_order") or entry.get("section_order") or entry.get("order") or index)
+                chapter_order = int(
+                    entry.get("chapter_order")
+                    or entry.get("section_order")
+                    or entry.get("order")
+                    or index
+                )
                 chapter_title = entry.get("chapter_title") or entry.get("title")
                 source_section_id = entry.get("source_section_id") or entry.get("section_id")
-                explicit_unit_ids = [str(item) for item in (entry.get("render_unit_ids") or entry.get("ordered_render_unit_ids") or [])]
+                explicit_unit_ids = [
+                    str(item)
+                    for item in (
+                        entry.get("render_unit_ids") or entry.get("ordered_render_unit_ids") or []
+                    )
+                ]
                 scene_ids = [str(item) for item in (entry.get("scene_ids") or [])]
                 if explicit_unit_ids:
                     for unit_id in explicit_unit_ids:
                         if unit_id in assigned_units:
-                            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.DUPLICATE_RENDER_UNIT_MEMBERSHIP, f"render unit assigned to multiple chapters: {unit_id}", render_unit_id=unit_id, chapter_id=chapter_id))
+                            raise ChapterAssemblyError(
+                                AssemblyFailure(
+                                    AssemblyFailureType.DUPLICATE_RENDER_UNIT_MEMBERSHIP,
+                                    f"render unit assigned to multiple chapters: {unit_id}",
+                                    render_unit_id=unit_id,
+                                    chapter_id=chapter_id,
+                                )
+                            )
                         assigned_units.add(unit_id)
                 elif scene_ids:
                     for unit in manifest.render_units:
                         if unit.scene_id in scene_ids and unit.validation_status != "skipped":
                             if unit.render_unit_id in assigned_units:
-                                raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.DUPLICATE_RENDER_UNIT_MEMBERSHIP, f"render unit assigned to multiple chapters: {unit.render_unit_id}", render_unit_id=unit.render_unit_id, chapter_id=chapter_id))
+                                raise ChapterAssemblyError(
+                                    AssemblyFailure(
+                                        AssemblyFailureType.DUPLICATE_RENDER_UNIT_MEMBERSHIP,
+                                        f"render unit assigned to multiple chapters: {unit.render_unit_id}",
+                                        render_unit_id=unit.render_unit_id,
+                                        chapter_id=chapter_id,
+                                    )
+                                )
                             assigned_units.add(unit.render_unit_id)
                 groups.append(
                     ChapterGroup(
@@ -657,7 +1031,13 @@ class ChapterAssembler:
                 )
             return tuple(sorted(groups, key=lambda group: (group.chapter_order, group.chapter_id)))
 
-        chapter_orders = sorted({int(unit.source_order[0]) for unit in manifest.render_units if unit.validation_status == "ready" and unit.source_order})
+        chapter_orders = sorted(
+            {
+                int(unit.source_order[0])
+                for unit in manifest.render_units
+                if unit.validation_status == "ready" and unit.source_order
+            }
+        )
         if chapter_orders:
             return tuple(
                 ChapterGroup(
@@ -665,8 +1045,28 @@ class ChapterAssembler:
                     chapter_order=order,
                     chapter_title=None,
                     source_section_id=None,
-                    render_unit_ids=tuple(unit.render_unit_id for unit in sorted((u for u in manifest.render_units if int(u.source_order[0]) == order and u.validation_status == "ready"), key=self._unit_sort_key)),
-                    scene_ids=tuple(sorted({unit.scene_id for unit in manifest.render_units if int(unit.source_order[0]) == order and unit.validation_status == "ready"})),
+                    render_unit_ids=tuple(
+                        unit.render_unit_id
+                        for unit in sorted(
+                            (
+                                u
+                                for u in manifest.render_units
+                                if int(u.source_order[0]) == order
+                                and u.validation_status == "ready"
+                            ),
+                            key=self._unit_sort_key,
+                        )
+                    ),
+                    scene_ids=tuple(
+                        sorted(
+                            {
+                                unit.scene_id
+                                for unit in manifest.render_units
+                                if int(unit.source_order[0]) == order
+                                and unit.validation_status == "ready"
+                            }
+                        )
+                    ),
                 )
                 for order in chapter_orders
             )
@@ -675,28 +1075,80 @@ class ChapterAssembler:
                 ChapterGroup(
                     chapter_id=manifest.book_id,
                     chapter_order=1,
-                    chapter_title=manifest.source_artifacts.get("title") if isinstance(manifest.source_artifacts, Mapping) else None,
+                    chapter_title=(
+                        manifest.source_artifacts.get("title")
+                        if isinstance(manifest.source_artifacts, Mapping)
+                        else None
+                    ),
                     source_section_id=None,
-                    render_unit_ids=tuple(unit.render_unit_id for unit in sorted((unit for unit in manifest.render_units if unit.validation_status == "ready"), key=self._unit_sort_key)),
-                    scene_ids=tuple(sorted({unit.scene_id for unit in manifest.render_units if unit.validation_status == "ready"})),
+                    render_unit_ids=tuple(
+                        unit.render_unit_id
+                        for unit in sorted(
+                            (
+                                unit
+                                for unit in manifest.render_units
+                                if unit.validation_status == "ready"
+                            ),
+                            key=self._unit_sort_key,
+                        )
+                    ),
+                    scene_ids=tuple(
+                        sorted(
+                            {
+                                unit.scene_id
+                                for unit in manifest.render_units
+                                if unit.validation_status == "ready"
+                            }
+                        )
+                    ),
                 ),
             )
         if self.config.fallback_chapter_mode == "scene":
-            scenes = sorted({unit.scene_id for unit in manifest.render_units if unit.validation_status == "ready"})
+            scenes = sorted(
+                {
+                    unit.scene_id
+                    for unit in manifest.render_units
+                    if unit.validation_status == "ready"
+                }
+            )
             return tuple(
                 ChapterGroup(
                     chapter_id=scene_id,
                     chapter_order=index,
                     chapter_title=scene_id,
                     source_section_id=None,
-                    render_unit_ids=tuple(unit.render_unit_id for unit in sorted((unit for unit in manifest.render_units if unit.scene_id == scene_id and unit.validation_status == "ready"), key=self._unit_sort_key)),
+                    render_unit_ids=tuple(
+                        unit.render_unit_id
+                        for unit in sorted(
+                            (
+                                unit
+                                for unit in manifest.render_units
+                                if unit.scene_id == scene_id and unit.validation_status == "ready"
+                            ),
+                            key=self._unit_sort_key,
+                        )
+                    ),
                     scene_ids=(scene_id,),
                 )
                 for index, scene_id in enumerate(scenes, start=1)
             )
-        raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.CHAPTER_MAPPING_MISSING, "no chapter structure available and fallback mode rejects assembly"))
+        raise ChapterAssemblyError(
+            AssemblyFailure(
+                AssemblyFailureType.CHAPTER_MAPPING_MISSING,
+                "no chapter structure available and fallback mode rejects assembly",
+            )
+        )
 
-    def _is_cache_hit(self, group: ChapterGroup, ordered_units: list[Any], chapter_assembly_id: str, output_relative_path: str, output_path: Path, sidecar_path: Path, chapter_input_hash: str | None = None) -> bool:
+    def _is_cache_hit(
+        self,
+        group: ChapterGroup,
+        ordered_units: list[Any],
+        chapter_assembly_id: str,
+        output_relative_path: str,
+        output_path: Path,
+        sidecar_path: Path,
+        chapter_input_hash: str | None = None,
+    ) -> bool:
         if not output_path.exists() or not sidecar_path.exists():
             return False
         try:
@@ -704,7 +1156,9 @@ class ChapterAssembler:
         except ChapterSidecarError:
             return False
         try:
-            expected_hash = chapter_input_hash or self._chapter_input_hash(group, ordered_units, chapter_assembly_id)
+            expected_hash = chapter_input_hash or self._chapter_input_hash(
+                group, ordered_units, chapter_assembly_id
+            )
         except Exception:
             return False
         if not chapter_cache_entry_matches(
@@ -738,7 +1192,9 @@ class ChapterAssembler:
             return False
         return True
 
-    def _chapter_input_hash(self, group: ChapterGroup, ordered_units: list[Any], chapter_assembly_id: str) -> str:
+    def _chapter_input_hash(
+        self, group: ChapterGroup, ordered_units: list[Any], chapter_assembly_id: str
+    ) -> str:
         payload = {
             "chapter_assembly_id": chapter_assembly_id,
             "chapter_id": group.chapter_id,
@@ -746,10 +1202,16 @@ class ChapterAssembler:
             "book_id": self.manifest.book_id,
             "assembly_contract_version": self.config.assembly_contract_version,
             "ordered_render_unit_ids": [unit.render_unit_id for unit in ordered_units],
-            "ordered_segment_synthesis_input_hashes": [unit.synthesis_input_hash for unit in ordered_units],
-            "ordered_segment_audio_content_hashes": [self._segment_audio_hash(unit) for unit in ordered_units],
+            "ordered_segment_synthesis_input_hashes": [
+                unit.synthesis_input_hash for unit in ordered_units
+            ],
+            "ordered_segment_audio_content_hashes": [
+                self._segment_audio_hash(unit) for unit in ordered_units
+            ],
             "ordered_segment_cache_keys": [self._segment_cache_key(unit) for unit in ordered_units],
-            "ordered_segment_artifact_relative_paths": [unit.output_artifact_key for unit in ordered_units],
+            "ordered_segment_artifact_relative_paths": [
+                unit.output_artifact_key for unit in ordered_units
+            ],
             "spacing": dataclass_to_dict(self.config.spacing),
             "output_format": self.config.output_format,
             "sample_rate_hz": self.config.sample_rate_hz,
@@ -777,19 +1239,34 @@ class ChapterAssembler:
         sidecar_path = Path(str(self._segment_root / unit.output_artifact_key) + ".json")
         entry = load_render_sidecar(sidecar_path)
         if entry is None:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.SEGMENT_SIDECAR_MISSING, f"missing sidecar for {unit.render_unit_id}", render_unit_id=unit.render_unit_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.SEGMENT_SIDECAR_MISSING,
+                    f"missing sidecar for {unit.render_unit_id}",
+                    render_unit_id=unit.render_unit_id,
+                )
+            )
         return entry.cache_key
 
-    def _load_manifest(self, manifest_source: SynthesisManifest | Mapping[str, Any] | str | Path) -> SynthesisManifest:
+    def _load_manifest(
+        self, manifest_source: SynthesisManifest | Mapping[str, Any] | str | Path
+    ) -> SynthesisManifest:
         if isinstance(manifest_source, SynthesisManifest):
             return manifest_source
         if isinstance(manifest_source, Path):
             return load_synthesis_manifest(manifest_source)
         if isinstance(manifest_source, str):
             return load_synthesis_manifest(Path(manifest_source))
-        raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.UNKNOWN_FAILURE, f"unsupported manifest source: {type(manifest_source).__name__}"))
+        raise ChapterAssemblyError(
+            AssemblyFailure(
+                AssemblyFailureType.UNKNOWN_FAILURE,
+                f"unsupported manifest source: {type(manifest_source).__name__}",
+            )
+        )
 
-    def _load_optional_source(self, source: Mapping[str, Any] | str | Path | None) -> dict[str, Any] | None:
+    def _load_optional_source(
+        self, source: Mapping[str, Any] | str | Path | None
+    ) -> dict[str, Any] | None:
         if source is None:
             return None
         if isinstance(source, Mapping):
@@ -808,13 +1285,25 @@ class ChapterAssembler:
         current_type = unit.segment_type
         next_type = next_unit.segment_type
         if current_type == "narration" and next_type == "narration":
-            return self.config.spacing.narration_to_narration_ms or self.config.spacing.default_between_segments_ms
+            return (
+                self.config.spacing.narration_to_narration_ms
+                or self.config.spacing.default_between_segments_ms
+            )
         if current_type == "narration" and next_type == "dialogue":
-            return self.config.spacing.narration_to_dialogue_ms or self.config.spacing.default_between_segments_ms
+            return (
+                self.config.spacing.narration_to_dialogue_ms
+                or self.config.spacing.default_between_segments_ms
+            )
         if current_type == "dialogue" and next_type == "narration":
-            return self.config.spacing.dialogue_to_narration_ms or self.config.spacing.default_between_segments_ms
+            return (
+                self.config.spacing.dialogue_to_narration_ms
+                or self.config.spacing.default_between_segments_ms
+            )
         if current_type == "dialogue" and next_type == "dialogue":
-            return self.config.spacing.dialogue_to_dialogue_ms or self.config.spacing.default_between_segments_ms
+            return (
+                self.config.spacing.dialogue_to_dialogue_ms
+                or self.config.spacing.default_between_segments_ms
+            )
         return self.config.spacing.default_between_segments_ms
 
     def _pack_wav_bytes(self, pcm_bytes: bytes) -> bytes:
@@ -832,7 +1321,13 @@ class ChapterAssembler:
 
     def _render_temp_path(self, artifact_path: Path) -> Path:
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
-        handle = NamedTemporaryFile("wb", dir=artifact_path.parent, prefix=f".{artifact_path.name}.", suffix=".tmp", delete=False)
+        handle = NamedTemporaryFile(
+            "wb",
+            dir=artifact_path.parent,
+            prefix=f".{artifact_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        )
         try:
             return Path(handle.name)
         finally:
@@ -847,7 +1342,13 @@ class ChapterAssembler:
         path.replace(backup)
         return backup
 
-    def _restore_backups(self, audio_path: Path, sidecar_path: Path, audio_backup: Path | None, sidecar_backup: Path | None) -> None:
+    def _restore_backups(
+        self,
+        audio_path: Path,
+        sidecar_path: Path,
+        audio_backup: Path | None,
+        sidecar_backup: Path | None,
+    ) -> None:
         if audio_backup and audio_backup.exists():
             if audio_path.exists():
                 audio_path.unlink()
@@ -863,9 +1364,19 @@ class ChapterAssembler:
 
     def _chapter_relative_path(self, group: ChapterGroup, chapter_assembly_id: str) -> str:
         chapter_token = self._chapter_token(group.chapter_id)
-        relative = Path(self.config.chapter_path_prefix) / f"{group.chapter_order:04d}-{chapter_token}" / f"{chapter_assembly_id}.wav"
+        relative = (
+            Path(self.config.chapter_path_prefix)
+            / f"{group.chapter_order:04d}-{chapter_token}"
+            / f"{chapter_assembly_id}.wav"
+        )
         if relative.is_absolute() or any(part == ".." for part in relative.parts):
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.UNSAFE_OUTPUT_PATH, f"unsafe chapter output path: {relative}", chapter_id=group.chapter_id))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.UNSAFE_OUTPUT_PATH,
+                    f"unsafe chapter output path: {relative}",
+                    chapter_id=group.chapter_id,
+                )
+            )
         return relative.as_posix()
 
     def _chapter_absolute_path(self, group: ChapterGroup, chapter_assembly_id: str) -> Path:
@@ -876,16 +1387,40 @@ class ChapterAssembler:
 
     def _chapter_token(self, value: str) -> str:
         if value.startswith("/") or ".." in value or "/" in value or "\\" in value:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.UNSAFE_OUTPUT_PATH, f"unsafe chapter id: {value}", chapter_id=value))
-        token = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in value.strip().lower())
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.UNSAFE_OUTPUT_PATH,
+                    f"unsafe chapter id: {value}",
+                    chapter_id=value,
+                )
+            )
+        token = "".join(
+            ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in value.strip().lower()
+        )
         while "--" in token:
             token = token.replace("--", "-")
         token = token.strip("-._")
         if not token:
-            raise ChapterAssemblyError(AssemblyFailure(AssemblyFailureType.UNSAFE_OUTPUT_PATH, f"unsafe chapter id: {value}", chapter_id=value))
+            raise ChapterAssemblyError(
+                AssemblyFailure(
+                    AssemblyFailureType.UNSAFE_OUTPUT_PATH,
+                    f"unsafe chapter id: {value}",
+                    chapter_id=value,
+                )
+            )
         return token
 
-    def _blocked_result(self, group: ChapterGroup, blocked_unit_ids: list[str], omitted_unit_ids: list[str], missing_unit_ids: list[str], segment_statuses: list[ChapterSegmentStatus], *, warnings: tuple[str, ...] = (), errors: tuple[str, ...] = ()) -> ChapterAssemblyResult:
+    def _blocked_result(
+        self,
+        group: ChapterGroup,
+        blocked_unit_ids: list[str],
+        omitted_unit_ids: list[str],
+        missing_unit_ids: list[str],
+        segment_statuses: list[ChapterSegmentStatus],
+        *,
+        warnings: tuple[str, ...] = (),
+        errors: tuple[str, ...] = (),
+    ) -> ChapterAssemblyResult:
         chapter_assembly_id = build_chapter_assembly_id(
             book_id=self.manifest.book_id,
             chapter_id=group.chapter_id,
@@ -923,7 +1458,9 @@ class ChapterAssembler:
             segment_statuses=tuple(segment_statuses),
         )
 
-    def _completion_status(self, completed: int, blocked: int, partial: int, failed: int, warnings: list[str]) -> str:
+    def _completion_status(
+        self, completed: int, blocked: int, partial: int, failed: int, warnings: list[str]
+    ) -> str:
         if failed and not completed:
             return "failed"
         if failed:
@@ -939,7 +1476,14 @@ class ChapterAssembler:
         data = canonical_json_dumps(payload) + "\n"
         report_path = self._assembly_root / self.config.report_filename
         report_path.parent.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile("w", encoding="utf-8", dir=report_path.parent, prefix=f".{report_path.name}.", suffix=".tmp", delete=False) as handle:
+        with NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=report_path.parent,
+            prefix=f".{report_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
             tmp = Path(handle.name)
             handle.write(data)
             handle.flush()
@@ -953,19 +1497,34 @@ def assemble_chapters(
     chapter_structure_source: Mapping[str, Any] | str | Path | None = None,
     config: ChapterAssemblyConfig,
 ) -> ChapterAssemblyReport:
-    return ChapterAssembler(manifest_source, chapter_structure_source=chapter_structure_source, config=config).assemble()
+    return ChapterAssembler(
+        manifest_source, chapter_structure_source=chapter_structure_source, config=config
+    ).assemble()
 
 
-def compare_chapter_assemblies(left: ChapterSidecar | Mapping[str, Any], right: ChapterSidecar | Mapping[str, Any]) -> bool:
+def compare_chapter_assemblies(
+    left: ChapterSidecar | Mapping[str, Any], right: ChapterSidecar | Mapping[str, Any]
+) -> bool:
     left_payload = dataclass_to_dict(left) if isinstance(left, ChapterSidecar) else dict(left)
     right_payload = dataclass_to_dict(right) if isinstance(right, ChapterSidecar) else dict(right)
     return canonical_json_dumps(left_payload) == canonical_json_dumps(right_payload)
 
 
-def save_chapter_atomic(output_path: Path, sidecar_path: Path, audio_bytes: bytes, sidecar: ChapterSidecar) -> None:
+def save_chapter_atomic(
+    output_path: Path, sidecar_path: Path, audio_bytes: bytes, sidecar: ChapterSidecar
+) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    audio_tmp = NamedTemporaryFile("wb", dir=output_path.parent, prefix=f".{output_path.name}.", suffix=".tmp", delete=False)
-    sidecar_tmp = NamedTemporaryFile("w", encoding="utf-8", dir=sidecar_path.parent, prefix=f".{sidecar_path.name}.", suffix=".tmp", delete=False)
+    audio_tmp = NamedTemporaryFile(
+        "wb", dir=output_path.parent, prefix=f".{output_path.name}.", suffix=".tmp", delete=False
+    )
+    sidecar_tmp = NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        dir=sidecar_path.parent,
+        prefix=f".{sidecar_path.name}.",
+        suffix=".tmp",
+        delete=False,
+    )
     audio_backup = None
     sidecar_backup = None
     try:

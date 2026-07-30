@@ -1,92 +1,189 @@
-# Storyforge Phase 2
+# StoryForge
 
-Storyforge Phase 2 is a production-oriented EPUB-to-audiobook conversion engine.
+> StoryForge is under active development. Interfaces, schemas, and command-line behavior may change before the first stable release.
 
-What it does now:
+StoryForge is an open-source work in progress for deterministic audiobook production from EPUB inputs.
+It is built around reproducible planning, rendering, assembly, mastering, and packaging stages, with incremental
+rebuilds and resumable caches so long conversions can continue from the last known-good artifact.
 
-- Reads a full DRM-free EPUB book
-- Extracts book metadata and cover art
-- Discovers readable chapters in order
-- Converts every chapter to a standalone WAV file
-- Tracks progress and writes a resumable manifest
-- Resumes interrupted jobs without regenerating completed chapters
-- Builds a final M4B audiobook with chapter markers and embedded cover art
-- Retries Kokoro requests with exponential backoff
-- Keeps per-conversion logs plus per-chapter metadata
+Current status: public work-in-progress release preparation.
 
-What Phase 2 does not do:
+## Core capabilities
 
-- Speaker detection
-- Multiple character voices
-- Emotion analysis
-- AI summaries
-- Dashboards
-- Web interfaces
+- Normalize analysis inputs into stable story and character data
+- Plan and persist deterministic voices with editable overrides
+- Build synthesis manifests with provider-neutral render units
+- Render speech through a thin provider adapter boundary
+- Assemble chapter audio into chapter-level WAV artifacts
+- Apply deterministic mastering with an RMS-based loudness proxy
+- Package chapter audio and metadata into M4B output when FFmpeg is available
+- Resume interrupted builds without regenerating reusable stages
 
-## Configuration
+## Pipeline overview
 
-All configurable values live in:
+1. Normalize or ingest structured story analysis.
+2. Generate a voice plan and optional editable overrides.
+3. Build a synthesis manifest from the story, plan, and registry.
+4. Render segment audio with the selected provider adapter.
+5. Assemble chapter WAV files from render outputs.
+6. Master the chapter audio to a consistent level.
+7. Package the audiobook into an M4B file with chapters and cover art.
 
-`config/config.yaml`
+See `docs/architecture.md` and `docs/pipeline.md` for the stage-by-stage contract.
 
-This includes:
+## Architecture summary
 
-- default voice
-- speed
-- chunk size
-- retry delays
-- temp/output directories
-- M4B bitrate
-- chapter filename format
+StoryForge separates planning from rendering. The planner decides which voice should speak each role; the renderer only consumes the approved manifest.
+Cache identities are derived from canonical inputs, backend identity, and the stage contract so that unchanged work can be safely reused.
 
-## Runtime commands
+The pipeline is designed for reproducibility, but not every output is bitwise stable:
 
-List Kokoro voices:
+- Kokoro speech bytes are not assumed to be bitwise deterministic
+- the mastering loudness value is an RMS-based proxy, not true LUFS
+- sample peak is not true peak
+- AAC and M4B output can vary across FFmpeg or encoder versions
 
-```bash
-python -m app.kokoro_client --list-voices
-```
+## Installation
 
-Show the Kokoro OpenAPI speech schema:
+Requirements:
 
-```bash
-python -m app.kokoro_client --show-schema
-```
+- Python 3.11 or newer
+- `pip`
+- FFmpeg for final M4B packaging and some validation commands
 
-Run a full-book conversion:
+Install from a clean checkout:
 
 ```bash
-python -m app.convert --epub "/books/sample.epub"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
 ```
 
-Resume unfinished jobs and then process a requested EPUB:
+If you only need the runtime package:
 
 ```bash
-python -m app.convert --epub "/books/sample.epub" --resume-all
+pip install -e .
 ```
 
-## Output layout
+## Development setup
 
-Each completed book is written under the configured output directory as:
+```bash
+python -m pip install -e '.[dev]'
+python -m pytest
+python -m compileall app storyforge
+storyforge --help
+storyforge --version
+```
 
-- `manifest.json`
-- `metadata.json`
-- `chapters.json`
-- `cover.jpg`
-- `Book Name.m4b`
-- `Chapter 001.wav`
-- `Chapter 002.wav`
-- `logs/conversion.log`
+A tiny synthetic analysis fixture lives under `tests/fixtures/normalized_analysis_sample/` and is safe to use for local experimentation.
 
-## Validation
+## Minimal usage example
 
-The project includes automated tests for:
+Build a book from a DRM-free EPUB:
 
-- EPUB parsing
-- chapter ordering
-- metadata extraction
-- manifest save/load
-- resume behavior
-- Kokoro retry logic
-- M4B creation with chapter markers and cover art
+```bash
+storyforge build --epub ./books/example.epub --config ./config/config.yaml
+```
 
+Inspect the environment without touching provider APIs:
+
+```bash
+storyforge doctor
+storyforge validate
+```
+
+`storyforge validate` performs the local release-readiness audit. `storyforge doctor` checks the configured runtime environment.
+
+## Supported and optional dependencies
+
+Runtime dependencies:
+
+- `ebooklib`
+- `beautifulsoup4`
+- `requests`
+- `PyYAML`
+
+Optional development dependencies:
+
+- `pytest`
+- `pytest-cov`
+- `ruff`
+- `black`
+
+Optional system dependency:
+
+- FFmpeg for packaging M4B output and inspecting rendered audio
+
+Standard tests do not require Kokoro, FFmpeg, or external provider credentials.
+
+## Provider notes
+
+- Kokoro is the initial rendering backend, but the planner and manifest stay provider-neutral.
+- Provider settings default to local placeholder values and can be overridden with environment variables.
+- Keep credentials out of source control; use local configuration or environment variables.
+
+## Output artifacts
+
+Typical stage outputs include:
+
+- normalized analysis JSON files
+- `voice_plan.json`
+- `voice_assignment_report.json`
+- synthesis manifest JSON
+- rendered chapter WAVs and sidecars
+- mastered chapter WAVs and sidecars
+- final M4B package and metadata sidecars
+
+The repository ignores generated audio, temporary workspaces, logs, and package artifacts.
+
+## Incremental-build behavior
+
+Each stage computes an identity from its canonical inputs. If the stage inputs, backend identity, or renderer contract have not changed, the cached result can be reused.
+If a stage fails, downstream stages are blocked until the prerequisite stage is repaired or intentionally rebuilt.
+
+Details: `docs/incremental-builds.md`
+
+## Testing
+
+Run the unit and integration-safe suite locally:
+
+```bash
+python -m pytest
+```
+
+Recommended release checks:
+
+```bash
+storyforge validate
+python -m compileall app storyforge
+ruff check storyforge tests/test_release_readiness.py
+black --check storyforge tests/test_release_readiness.py
+```
+
+FFmpeg-dependent tests are skipped cleanly when FFmpeg is unavailable.
+
+## Roadmap
+
+See `docs/roadmap.md` for the current release-ready scope, near-term improvements, and future possibilities.
+
+## Contributing
+
+Read `CONTRIBUTING.md` before submitting changes. Please avoid copyrighted manuscript text, provider credentials, and machine-specific paths in commits.
+
+## Security
+
+See `SECURITY.md` for private vulnerability reporting guidance and manuscript/privacy notes.
+
+## License
+
+StoryForge is released under the Apache License 2.0. See `LICENSE`.
+
+## Known limitations
+
+- The project is still a work in progress.
+- Schemas and command-line behavior may change before the first stable release.
+- Kokoro output is not assumed to be bitwise deterministic.
+- The mastering backend uses a simple RMS-based loudness proxy and does not measure true peak.
+- AAC and M4B output may differ across FFmpeg or encoder versions.
+- FFmpeg is required for real M4B packaging.
+- No GUI, cloud workers, hosted publishing, or automatic distribution are included in this milestone.

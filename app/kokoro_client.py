@@ -11,7 +11,6 @@ from urllib.parse import urljoin
 import requests
 import time
 
-
 DEFAULT_STATIC_VOICES = [
     "af",
     "af_bella",
@@ -187,19 +186,35 @@ class KokoroClient:
             except requests.RequestException as exc:
                 last_error = exc
             else:
-                content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                content_type = (
+                    response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                )
                 body = response.content
 
                 if response.status_code >= 400:
-                    last_error = KokoroError(f"Kokoro returned HTTP {response.status_code}: {_response_detail(response)}")
+                    last_error = KokoroError(
+                        f"Kokoro returned HTTP {response.status_code}: {_response_detail(response)}"
+                    )
                 elif "json" in content_type or body.lstrip()[:1] in {b"{", b"["}:
-                    last_error = KokoroError(f"Kokoro returned JSON instead of audio: {_response_detail(response)}")
-                elif content_type and not content_type.startswith("audio/") and content_type != "application/octet-stream":
-                    last_error = KokoroError(f"Unexpected Kokoro content-type '{content_type}' for audio response")
+                    last_error = KokoroError(
+                        f"Kokoro returned JSON instead of audio: {_response_detail(response)}"
+                    )
+                elif (
+                    content_type
+                    and not content_type.startswith("audio/")
+                    and content_type != "application/octet-stream"
+                ):
+                    last_error = KokoroError(
+                        f"Unexpected Kokoro content-type '{content_type}' for audio response"
+                    )
                 else:
                     output_path.parent.mkdir(parents=True, exist_ok=True)
                     output_path.write_bytes(body)
-                    return KokoroResult(content_type=content_type or "application/octet-stream", path=output_path, response_bytes=body)
+                    return KokoroResult(
+                        content_type=content_type or "application/octet-stream",
+                        path=output_path,
+                        response_bytes=body,
+                    )
 
             if attempt < attempts:
                 time.sleep(self.retry_delays[attempt - 1])
@@ -248,13 +263,32 @@ def _response_detail(response: requests.Response) -> str:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Inspect a Kokoro-FastAPI instance.")
-    parser.add_argument("--api-url", default=os.getenv("KOKORO_API_URL", "http://Kokoro-FastAPI:8880/v1"), help="OpenAI-compatible Kokoro base URL")
-    parser.add_argument("--api-key", default=os.getenv("KOKORO_API_KEY", "not-needed"), help="API key placeholder")
-    parser.add_argument("--voice", default=os.getenv("KOKORO_VOICE", "af_bella"), help="Voice to validate")
-    parser.add_argument("--timeout", default=float(os.getenv("STORYFORGE_KOKORO_TIMEOUT", 120.0)), type=float, help="Request timeout")
-    parser.add_argument("--list-voices", action="store_true", help="List voices supported by the installed Kokoro instance")
-    parser.add_argument("--show-schema", action="store_true", help="Fetch and summarize the OpenAPI speech schema")
+    parser = argparse.ArgumentParser(description="Inspect a Kokoro instance.")
+    parser.add_argument(
+        "--api-url",
+        default=os.getenv("KOKORO_API_URL", "http://127.0.0.1:8880/v1"),
+        help="OpenAI-compatible Kokoro base URL",
+    )
+    parser.add_argument(
+        "--api-key", default=os.getenv("KOKORO_API_KEY", "not-needed"), help="API key placeholder"
+    )
+    parser.add_argument(
+        "--voice", default=os.getenv("KOKORO_VOICE", "af_bella"), help="Voice to validate"
+    )
+    parser.add_argument(
+        "--timeout",
+        default=float(os.getenv("STORYFORGE_KOKORO_TIMEOUT", 120.0)),
+        type=float,
+        help="Request timeout",
+    )
+    parser.add_argument(
+        "--list-voices",
+        action="store_true",
+        help="List voices supported by the installed Kokoro instance",
+    )
+    parser.add_argument(
+        "--show-schema", action="store_true", help="Fetch and summarize the OpenAPI speech schema"
+    )
     return parser
 
 
@@ -262,7 +296,9 @@ def _summarize_speech_schema(schema: dict) -> dict:
     try:
         speech = schema["components"]["schemas"]["OpenAISpeechRequest"]
     except Exception as exc:
-        raise KokoroError(f"OpenAPI schema does not expose components.schemas.OpenAISpeechRequest: {exc}") from exc
+        raise KokoroError(
+            f"OpenAPI schema does not expose components.schemas.OpenAISpeechRequest: {exc}"
+        ) from exc
     properties = speech.get("properties", {}) if isinstance(speech, dict) else {}
     required = speech.get("required", []) if isinstance(speech, dict) else []
     return {
@@ -283,7 +319,9 @@ def _summarize_speech_schema(schema: dict) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
-    client = KokoroClient(base_url=args.api_url, api_key=args.api_key, voice=args.voice, timeout=args.timeout)
+    client = KokoroClient(
+        base_url=args.api_url, api_key=args.api_key, voice=args.voice, timeout=args.timeout
+    )
 
     if args.show_schema:
         schema = client.fetch_openapi_schema()

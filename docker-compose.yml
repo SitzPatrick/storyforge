@@ -7,7 +7,7 @@ services:
     container_name: storyforge
     environment:
       STORYFORGE_CONFIG: /app/config/config.yaml
-      KOKORO_API_URL: ${KOKORO_API_URL:-http://Kokoro-FastAPI:8880/v1}
+      KOKORO_API_URL: ${KOKORO_API_URL:-http://kokoro:8880/v1}
       KOKORO_VOICE: ${KOKORO_VOICE:-af_bella}
       KOKORO_SPEED: ${KOKORO_SPEED:-1.0}
       KOKORO_MODEL: ${KOKORO_MODEL:-kokoro}
@@ -19,17 +19,11 @@ services:
       STORYFORGE_CHUNK_CHARS: ${STORYFORGE_CHUNK_CHARS:-8000}
       STORYFORGE_KOKORO_TIMEOUT: ${STORYFORGE_KOKORO_TIMEOUT:-120}
     volumes:
-      - /mnt/user/Books/EPUB:/books:ro
-      - /mnt/user/Books/Audiobooks:/output
-      - /mnt/user/appdata/storyforge/config:/app/config
-      - /mnt/user/appdata/storyforge/logs:/app/logs
-      - /mnt/user/appdata/storyforge/temp:/app/temp
+      - ./books:/books:ro
+      - ./output:/output
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./temp:/app/temp
     working_dir: /app
     command: ["sleep", "infinity"]
     restart: unless-stopped
-    networks:
-      - storyforge-net
-
-networks:
-  storyforge-net:
-    external: true

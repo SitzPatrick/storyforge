@@ -1,22 +1,19 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+ENV PYTHONDONTWRITEBYTECODE=1             PYTHONUNBUFFERED=1             PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update             && apt-get install -y --no-install-recommends ffmpeg             && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
-
-COPY app /app/app
-COPY tests /app/tests
+COPY pyproject.toml /app/pyproject.toml
 COPY README.md /app/README.md
-COPY .env.example /app/.env.example
+COPY LICENSE /app/LICENSE
+COPY app /app/app
+COPY storyforge /app/storyforge
 COPY config /app/config
+COPY .env.example /app/.env.example
 
-CMD ["python", "-m", "app.convert", "--help"]
+RUN pip install --no-cache-dir .
+
+CMD ["storyforge", "--help"]
