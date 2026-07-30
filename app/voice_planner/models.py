@@ -44,8 +44,18 @@ class VoiceAssignment:
     provider_voice_id: str | None
     locked: bool = False
     source: str = "automatic"
+    continuity_status: str | None = None
+    registry_key: str | None = None
+    score: int | None = None
+    score_components: list[dict[str, Any]] = field(default_factory=list)
+    scarcity_effects: list[str] = field(default_factory=list)
+    conflict_effects: list[str] = field(default_factory=list)
+    relaxed_constraints: list[str] = field(default_factory=list)
+    preserved_constraints: list[str] = field(default_factory=list)
     confidence: float | None = None
     unavailable_reason: str | None = None
+    rationale: str | None = None
+    rejected_candidates: list[dict[str, Any]] = field(default_factory=list)
     edited_at: str | None = None
     edited_by: str | None = None
     notes: str | None = None
@@ -108,6 +118,20 @@ class PlanningReport:
     plan_hash: str
     generated_at: str
     narrator_choice: dict[str, Any]
+    total_characters: int = 0
+    total_locked_assignments: int = 0
+    inherited_bindings_reused: int = 0
+    manual_overrides_honored: int = 0
+    new_assignments: int = 0
+    reused_voices: int = 0
+    relaxed_conflicts: int = 0
+    unresolved_conflicts: int = 0
+    scarcity_level: str = "none"
+    protected_characters: list[str] = field(default_factory=list)
+    assignment_score_statistics: dict[str, Any] = field(default_factory=dict)
+    optimization_statistics: dict[str, Any] = field(default_factory=dict)
+    runtime_ms: int | None = None
+    deterministic_verification: dict[str, Any] = field(default_factory=dict)
     reused_bindings: list[dict[str, Any]] = field(default_factory=list)
     new_bindings: list[dict[str, Any]] = field(default_factory=list)
     manual_overrides: list[dict[str, Any]] = field(default_factory=list)

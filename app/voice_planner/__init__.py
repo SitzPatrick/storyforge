@@ -1,4 +1,5 @@
 from .adapter import CharacterProfileAdapterError, hash_phase3b_inputs, load_character_profiles, serialize_character_profiles
+from .assignment import AssignmentContext, AssignmentError, AssignmentResult, assign_voices, serialize_assignment_report, serialize_voice_plan, write_assignment_report, write_voice_plan
 from .bindings import (
     BindingRegistryCheck,
     SeriesBindingError,
@@ -14,24 +15,6 @@ from .bindings import (
     set_narrator_binding,
     validate_against_registry,
 )
-from .models import (
-    AssignmentProvenance,
-    CharacterPlan,
-    CharacterProfile,
-    CharacterProfileBundle,
-    NarratorPlan,
-    PlanningReport,
-    ScarcityEvent,
-    ReassignmentHistoryEntry,
-    SceneConflict,
-    SceneRelationship,
-    SeriesBindings,
-    SeriesVoiceBinding,
-    VoiceAssignment,
-    VoiceCapability,
-    VoicePlan,
-)
-from .registry import dump_voice_registry, is_voice_selectable, load_voice_registry, selectable_voices, voice_registry_key, write_voice_registry
 from .budget import (
     BudgetConfig,
     BudgetContext,
@@ -65,6 +48,35 @@ from .conflicts import (
     validate_conflict_config,
     validate_scene_conflict_report,
 )
+from .models import (
+    AssignmentProvenance,
+    CharacterPlan,
+    CharacterProfile,
+    CharacterProfileBundle,
+    NarratorPlan,
+    PlanningReport,
+    ScarcityEvent,
+    ReassignmentHistoryEntry,
+    SceneConflict,
+    SceneRelationship,
+    SeriesBindings,
+    SeriesVoiceBinding,
+    VoiceAssignment,
+    VoiceCapability,
+    VoicePlan,
+)
+from .registry import dump_voice_registry, is_voice_selectable, load_voice_registry, selectable_voices, voice_registry_key, write_voice_registry
+from .schema import (
+    SCHEMA_VERSIONS,
+    canonical_json_dumps,
+    migrate_schema,
+    validate_assignment_report,
+    validate_character_profile_bundle,
+    validate_character_profile,
+    validate_series_bindings,
+    validate_voice_plan,
+    validate_voice_registry,
+)
 from .scoring import (
     CandidateScore,
     ScoreComponent,
@@ -77,19 +89,11 @@ from .scoring import (
     serialize_candidate_scores,
     validate_scoring_config,
 )
-from .schema import (
-    SCHEMA_VERSIONS,
-    canonical_json_dumps,
-    migrate_schema,
-    validate_assignment_report,
-    validate_character_profile_bundle,
-    validate_character_profile,
-    validate_series_bindings,
-    validate_voice_plan,
-    validate_voice_registry,
-)
 
 __all__ = [
+    "AssignmentContext",
+    "AssignmentError",
+    "AssignmentResult",
     "AssignmentProvenance",
     "CharacterPlan",
     "CharacterProfile",
@@ -122,11 +126,15 @@ __all__ = [
     "selectable_voices",
     "record_reassignment",
     "save_series_bindings",
+    "serialize_assignment_report",
     "serialize_character_profiles",
+    "serialize_voice_plan",
     "set_character_binding",
     "set_narrator_binding",
     "validate_against_registry",
     "voice_registry_key",
+    "write_assignment_report",
+    "write_voice_plan",
     "write_voice_registry",
     "SCHEMA_VERSIONS",
     "canonical_json_dumps",

@@ -351,7 +351,7 @@ def calculate_weighted_demand(profiles: Sequence[CharacterProfile], config: Budg
         for profile in tier_profiles:
             character_ids.append(profile.canonical_character_id)
             base = budget_config.tier_weights.get(tier, 0)
-            demand = base
+            demand = max(1, base)
             if profile.dialogue_count >= 8:
                 demand += budget_config.dialogue_weight
                 reasons.append(f"{profile.canonical_character_id}: dialogue count supports stronger reservation")
@@ -431,7 +431,8 @@ def build_reuse_policy(
 def calculate_voice_budget(context: BudgetContext) -> VoiceBudget:
     config = context.config or BudgetConfig.default()
     eligible_scores = [score for score in context.candidate_scores if score.eligible]
-    eligible_count = len(eligible_scores)
+    eligible_voice_keys = {score.registry_key for score in eligible_scores}
+    eligible_count = len(eligible_voice_keys)
     narrator_binding = _binding_for_narrator(context.series_bindings)
     character_bindings = _binding_for_characters(context.series_bindings)
     candidate_lookup = {score.registry_key: score for score in eligible_scores}
