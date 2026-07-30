@@ -15,6 +15,7 @@ SCHEMA_VERSIONS = {
     "character_profile": 1,
     "character_profile_bundle": 1,
     "scene_conflict_report": 1,
+    "editable_voice_plan": 1,
 }
 
 _REQUIRED_VOICE_REGISTRY_KEYS = {

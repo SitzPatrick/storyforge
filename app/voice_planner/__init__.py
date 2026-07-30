@@ -1,4 +1,21 @@
 from .adapter import CharacterProfileAdapterError, hash_phase3b_inputs, load_character_profiles, serialize_character_profiles
+from .editable_plan import (
+    EditableAssignment,
+    EditableVoicePlan,
+    EditableVoicePlanError,
+    ManualOverride,
+    PlanEditRecord,
+    PlanMergeResult,
+    PlanValidationIssue,
+    apply_manual_override,
+    load_editable_voice_plan,
+    merge_voice_plans,
+    resolve_effective_voice_plan,
+    save_voice_plan_atomic,
+    serialize_editable_voice_plan,
+    set_assignment_lock,
+    validate_editable_voice_plan,
+)
 from .assignment import AssignmentContext, AssignmentError, AssignmentResult, assign_voices, serialize_assignment_report, serialize_voice_plan, write_assignment_report, write_voice_plan
 from .bindings import (
     BindingRegistryCheck,
@@ -91,6 +108,21 @@ from .scoring import (
 )
 
 __all__ = [
+    "EditableAssignment",
+    "EditableVoicePlan",
+    "EditableVoicePlanError",
+    "ManualOverride",
+    "PlanEditRecord",
+    "PlanMergeResult",
+    "PlanValidationIssue",
+    "apply_manual_override",
+    "load_editable_voice_plan",
+    "merge_voice_plans",
+    "resolve_effective_voice_plan",
+    "save_voice_plan_atomic",
+    "serialize_editable_voice_plan",
+    "set_assignment_lock",
+    "validate_editable_voice_plan",
     "AssignmentContext",
     "AssignmentError",
     "AssignmentResult",
