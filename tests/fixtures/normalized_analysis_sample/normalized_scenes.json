@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "book_id": "merchant-of-death",
+  "series_id": "pendragon",
+  "scenes": [
+    {
+      "scene_id": "scene-001",
+      "scene_order": 1,
+      "character_ids": ["bobby-pendragon", "courtney-chetwynde"],
+      "speaking_character_ids": ["bobby-pendragon", "courtney-chetwynde"]
+    },
+    {
+      "scene_id": "scene-002",
+      "scene_order": 2,
+      "character_ids": ["bobby-pendragon", "uncle-press"],
+      "speaking_character_ids": ["bobby-pendragon", "uncle-press"]
+    },
+    {
+      "scene_id": "scene-003",
+      "scene_order": 3,
+      "character_ids": ["courtney-chetwynde", "uncle-press", "sirah"],
+      "speaking_character_ids": ["courtney-chetwynde", "uncle-press"]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "book_id": "merchant-of-death",
+  "series_id": "pendragon",
+  "characters": [
+    {
+      "schema_version": 1,
+      "entity_id": "character-1",
+      "canonical_character_id": "bobby-pendragon",
+      "canonical_name": "Bobby Pendragon",
+      "role": "protagonist",
+      "prominence": "major recurring",
+      "likely_recurrence": true,
+      "age_bucket": "teen",
+      "gender_presentation": "male",
+      "species_or_archetype": "human",
+      "source_aliases": ["Bobby", "Pendragon"],
+      "source_provenance": {
+        "source": "normalized_entities.json",
+        "entity_hash": "char-1"
+      },
+      "unresolved_metadata": {
+        "home_world": "unknown"
+      }
+    },
+    {
+      "schema_version": 1,
+      "entity_id": "character-2",
+      "canonical_character_id": "courtney-chetwynde",
+      "canonical_name": "Courtney Chetwynde",
+      "role": "supporting",
+      "prominence": "major supporting",
+      "likely_recurrence": true,
+      "age_bucket": null,
+      "gender_presentation": "female",
+      "species_or_archetype": "human",
+      "source_aliases": ["Courtney"],
+      "source_provenance": {
+        "source": "normalized_entities.json",
+        "entity_hash": "char-2"
+      },
+      "unresolved_metadata": {
+        "age_bucket": "unknown"
+      }
+    },
+    {
+      "schema_version": 1,
+      "entity_id": "character-3",
+      "canonical_character_id": "uncle-press",
+      "canonical_name": "Uncle Press",
+      "role": "mentor",
+      "prominence": "major recurring",
+      "likely_recurrence": true,
+      "age_bucket": null,
+      "gender_presentation": null,
+      "species_or_archetype": "human",
+      "source_aliases": ["Press", "Uncle Press"],
+      "source_provenance": {
+        "source": "normalized_entities.json",
+        "entity_hash": "char-3"
+      },
+      "unresolved_metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "entity_id": "character-4",
+      "canonical_character_id": "sirah",
+      "canonical_name": "Sirah",
+      "role": null,
+      "prominence": null,
+      "likely_recurrence": null,
+      "age_bucket": null,
+      "gender_presentation": null,
+      "species_or_archetype": null,
+      "source_aliases": ["Sirah"],
+      "source_provenance": {
+        "source": "normalized_entities.json",
+        "entity_hash": "char-4"
+      },
+      "unresolved_metadata": {
+        "role": "unknown",
+        "gender_presentation": "unknown",
+        "species_or_archetype": "unknown"
+      }
+    },
+    {
+      "schema_version": 1,
+      "entity_id": "character-ignored",
+      "canonical_character_id": "the-throwers",
+      "canonical_name": "The Throwers",
+      "rejected": true,
+      "source_aliases": ["throwers"],
+      "source_provenance": {
+        "source": "normalized_entities.json",
+        "entity_hash": "char-ignored"
+      },
+      "unresolved_metadata": {
+        "reason": "generic plural phrase"
+      }
+    }
+  ],
+  "organizations": [
+    {
+      "canonical_entity_id": "org-1",
+      "canonical_name": "Artan Clan"
+    }
+  ],
+  "places": [
+    {
+      "canonical_entity_id": "place-1",
+      "canonical_name": "Hara Province"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "book_id": "merchant-of-death",
+  "series_id": "pendragon",
+  "dialogue": [
+    {
+      "dialogue_id": "d1",
+      "scene_id": "scene-001",
+      "order": 1,
+      "speaker_character_id": "bobby-pendragon",
+      "quote_count": 1,
+      "word_count": 12,
+      "text": "We should go."
+    },
+    {
+      "dialogue_id": "d2",
+      "scene_id": "scene-001",
+      "order": 2,
+      "speaker_character_id": "courtney-chetwynde",
+      "quote_count": 1,
+      "word_count": 9,
+      "text": "I am coming."
+    },
+    {
+      "dialogue_id": "d3",
+      "scene_id": "scene-002",
+      "order": 3,
+      "speaker_character_id": "bobby-pendragon",
+      "quote_count": 1,
+      "word_count": 15,
+      "text": "This is strange."
+    },
+    {
+      "dialogue_id": "d4",
+      "scene_id": "scene-002",
+      "order": 4,
+      "speaker_character_id": null,
+      "speaker_label": "Unknown",
+      "quote_count": 1,
+      "word_count": 7,
+      "text": "[unresolved speaker]"
+    },
+    {
+      "dialogue_id": "d5",
+      "scene_id": "scene-002",
+      "order": 5,
+      "speaker_character_id": "uncle-press",
+      "quote_count": 1,
+      "word_count": 11,
+      "text": "Trust me."
+    },
+    {
+      "dialogue_id": "d6",
+      "scene_id": "scene-003",
+      "order": 6,
+      "speaker_character_id": "courtney-chetwynde",
+      "quote_count": 1,
+      "word_count": 8,
+      "text": "Look there."
+    },
+    {
+      "dialogue_id": "d7",
+      "scene_id": "scene-003",
+      "order": 7,
+      "speaker_character_id": "uncle-press",
+      "quote_count": 1,
+      "word_count": 10,
+      "text": "Follow the path."
+    }
+  ]
+}

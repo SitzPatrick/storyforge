@@ -145,6 +145,50 @@ class VoicePlan:
     user_editable_notes: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class SceneRelationship:
+    related_character_id: str
+    related_character_name: str
+    shared_scene_count: int
+    shared_speaking_scene_count: int | None = None
+    first_shared_scene_id: str | None = None
+    first_shared_scene_order: int | None = None
+
+
+@dataclass(frozen=True)
+class CharacterProfile:
+    schema_version: int
+    canonical_character_id: str
+    canonical_name: str
+    role: str | None = None
+    prominence: str | None = None
+    speaking_frequency: int = 0
+    first_appearance_order: int | None = None
+    likely_recurrence: bool | None = None
+    age_bucket: str | None = None
+    gender_presentation: str | None = None
+    species_or_archetype: str | None = None
+    scene_relationships: list[SceneRelationship] = field(default_factory=list)
+    dialogue_count: int = 0
+    scene_count: int = 0
+    source_aliases: list[str] = field(default_factory=list)
+    unresolved_metadata: dict[str, Any] = field(default_factory=dict)
+    source_provenance: dict[str, Any] = field(default_factory=dict)
+    notes: str | None = None
+
+
+@dataclass(frozen=True)
+class CharacterProfileBundle:
+    schema_version: int
+    book_id: str
+    series_id: str
+    source_analysis_path: str
+    source_hashes: dict[str, str]
+    profiles: list[CharacterProfile] = field(default_factory=list)
+    normalization_report: dict[str, Any] | None = None
+    statistics: dict[str, Any] = field(default_factory=dict)
+
+
 def dataclass_to_dict(obj: Any) -> Any:
     if is_dataclass(obj):
         result: dict[str, Any] = {}

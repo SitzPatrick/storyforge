@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "book_id": "merchant-of-death",
+  "series_id": "pendragon",
+  "generated_at": "2026-07-29T22:05:35Z",
+  "warnings": [],
+  "statistics": {
+    "characters": 4,
+    "rejected_entities": 1,
+    "dialogue_records": 7,
+    "scenes": 3
+  }
+}

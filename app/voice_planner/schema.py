@@ -11,6 +11,8 @@ SCHEMA_VERSIONS = {
     "voice_plan": 1,
     "assignment_report": 1,
     "series_bindings": 1,
+    "character_profile": 1,
+    "character_profile_bundle": 1,
 }
 
 _REQUIRED_VOICE_REGISTRY_KEYS = {
@@ -74,6 +76,29 @@ _REQUIRED_SERIES_BINDINGS_KEYS = {
     "narrator",
     "history",
     "updated_at",
+}
+
+_REQUIRED_CHARACTER_PROFILE_KEYS = {
+    "schema_version",
+    "canonical_character_id",
+    "canonical_name",
+    "speaking_frequency",
+    "dialogue_count",
+    "scene_count",
+    "scene_relationships",
+    "source_aliases",
+    "unresolved_metadata",
+    "source_provenance",
+}
+
+_REQUIRED_CHARACTER_PROFILE_BUNDLE_KEYS = {
+    "schema_version",
+    "book_id",
+    "series_id",
+    "source_analysis_path",
+    "source_hashes",
+    "profiles",
+    "statistics",
 }
 
 
@@ -205,6 +230,62 @@ def validate_series_bindings(data: Mapping[str, Any]) -> list[str]:
     history = data.get("history")
     if not isinstance(history, Sequence) or isinstance(history, (str, bytes)):
         errors.append("series bindings history must be a sequence")
+    return errors
+
+
+def validate_character_profile(data: Mapping[str, Any]) -> list[str]:
+    errors = _validate_required_keys(data, _REQUIRED_CHARACTER_PROFILE_KEYS, "character profile")
+    if not isinstance(data.get("schema_version"), int):
+        errors.append("character profile schema_version must be an integer")
+    if not isinstance(data.get("canonical_character_id"), str) or not data.get("canonical_character_id"):
+        errors.append("character profile canonical_character_id must be a non-empty string")
+    if not isinstance(data.get("canonical_name"), str) or not data.get("canonical_name"):
+        errors.append("character profile canonical_name must be a non-empty string")
+    if not isinstance(data.get("speaking_frequency"), int):
+        errors.append("character profile speaking_frequency must be an integer")
+    if not isinstance(data.get("dialogue_count"), int):
+        errors.append("character profile dialogue_count must be an integer")
+    if not isinstance(data.get("scene_count"), int):
+        errors.append("character profile scene_count must be an integer")
+    _validate_sequence_of_mappings(data, "scene_relationships", errors)
+    _validate_sequence_of_strings(data, "source_aliases", errors)
+    if not isinstance(data.get("unresolved_metadata"), Mapping):
+        errors.append("character profile unresolved_metadata must be a mapping")
+    if not isinstance(data.get("source_provenance"), Mapping):
+        errors.append("character profile source_provenance must be a mapping")
+    return errors
+
+
+def validate_character_profile_bundle(data: Mapping[str, Any]) -> list[str]:
+    errors = _validate_required_keys(data, _REQUIRED_CHARACTER_PROFILE_BUNDLE_KEYS, "character profile bundle")
+    if not isinstance(data.get("schema_version"), int):
+        errors.append("character profile bundle schema_version must be an integer")
+    if not isinstance(data.get("book_id"), str) or not data.get("book_id"):
+        errors.append("character profile bundle book_id must be a non-empty string")
+    if not isinstance(data.get("series_id"), str) or not data.get("series_id"):
+        errors.append("character profile bundle series_id must be a non-empty string")
+    if not isinstance(data.get("source_analysis_path"), str) or not data.get("source_analysis_path"):
+        errors.append("character profile bundle source_analysis_path must be a non-empty string")
+    source_hashes = data.get("source_hashes")
+    if not isinstance(source_hashes, Mapping):
+        errors.append("character profile bundle source_hashes must be a mapping")
+    else:
+        for key, value in source_hashes.items():
+            if not isinstance(key, str) or not key:
+                errors.append("character profile bundle source_hashes keys must be non-empty strings")
+            if not isinstance(value, str) or not value:
+                errors.append(f"character profile bundle source_hashes[{key!r}] must be a non-empty string")
+    profiles = data.get("profiles")
+    if not isinstance(profiles, Sequence) or isinstance(profiles, (str, bytes)):
+        errors.append("character profile bundle profiles must be a sequence")
+    else:
+        for idx, profile in enumerate(profiles):
+            if not isinstance(profile, Mapping):
+                errors.append(f"character profile bundle profile {idx} must be a mapping")
+            else:
+                errors.extend([f"profiles[{idx}]: {message}" for message in validate_character_profile(profile)])
+    if not isinstance(data.get("statistics"), Mapping):
+        errors.append("character profile bundle statistics must be a mapping")
     return errors
 
 
