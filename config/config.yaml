@@ -209,3 +209,52 @@ voice_planner:
     manual_override_bonus: 1
     inherited_binding_bonus: 1
     narrator_locked_bonus: 1
+  conflicts:
+    schema_version: 1
+    adjacency_window: 1
+    alternating_dialogue_threshold: 3
+    shared_scene_thresholds:
+      low: 1
+      moderate: 2
+      high: 3
+      critical: 4
+    shared_speaking_scene_thresholds:
+      low: 1
+      moderate: 2
+      high: 3
+      critical: 4
+    relationship_density_thresholds:
+      low: 0.25
+      moderate: 0.5
+      high: 0.75
+      critical: 1.0
+    severity_thresholds:
+      low: 3
+      moderate: 7
+      high: 12
+      critical: 18
+    hard_separation_tier_pairs:
+      - [primary or lead characters, major recurring characters]
+      - [primary or lead characters, narrator]
+      - [major recurring characters, narrator]
+    similarity_cluster_policy: hard_for_high_conflict
+    narrator_separation_policy: prohibit
+    locked_conflict_policy: invalid
+    scarcity_relaxation_policy: preserve_primary_major
+    pairwise_penalty_weights:
+      shared_scene: 2
+      shared_speaking_scene: 4
+      adjacent_dialogue: 3
+      near_dialogue: 2
+      alternating_dialogue: 5
+      relationship_density: 4
+      same_voice: 12
+      same_similarity_cluster: 6
+      role_similarity: 4
+      narrator: 8
+      locked: 10
+    same_voice_prohibition_thresholds:
+      shared_speaking_scene_count: 2
+      shared_scene_count: 3
+      alternating_dialogue_transitions: 3
+    unresolved_conflict_behavior: report

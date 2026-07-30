@@ -8,6 +8,7 @@ import os
 import yaml
 
 from app.voice_planner.budget import BudgetConfig
+from app.voice_planner.conflicts import ConflictConfig
 from app.voice_planner.scoring import ScoringConfig
 
 
@@ -78,6 +79,7 @@ class VoicePlannerSettings:
     dry_run_default: bool
     scoring: ScoringConfig = field(default_factory=ScoringConfig.default)
     budget: BudgetConfig = field(default_factory=BudgetConfig.default)
+    conflicts: ConflictConfig = field(default_factory=ConflictConfig.default)
 
 
 @dataclass
@@ -99,6 +101,7 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
     voice_planner_raw = data.get("voice_planner") or {}
     scoring_raw = voice_planner_raw.get("scoring") or {}
     budget_raw = voice_planner_raw.get("budget") or {}
+    conflicts_raw = voice_planner_raw.get("conflicts") or {}
     normalization_raw = data.get("normalization") or {}
     rejection_labels = {
         "characters": list((normalization_raw.get("rejection_labels") or {}).get("characters", [])),
@@ -166,6 +169,7 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             dry_run_default=bool(_as_bool(data, ("voice_planner", "dry_run_default"), default=True)),
             scoring=ScoringConfig.from_mapping(scoring_raw),
             budget=BudgetConfig.from_mapping(budget_raw),
+            conflicts=ConflictConfig.from_mapping(conflicts_raw),
         ),
     )
 

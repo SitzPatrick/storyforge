@@ -14,6 +14,7 @@ SCHEMA_VERSIONS = {
     "series_bindings": 1,
     "character_profile": 1,
     "character_profile_bundle": 1,
+    "scene_conflict_report": 1,
 }
 
 _REQUIRED_VOICE_REGISTRY_KEYS = {
@@ -100,6 +101,15 @@ _REQUIRED_CHARACTER_PROFILE_BUNDLE_KEYS = {
     "source_hashes",
     "profiles",
     "statistics",
+}
+
+_REQUIRED_SCENE_CONFLICT_REPORT_KEYS = {
+    "schema_version",
+    "book_id",
+    "series_id",
+    "pair_evidence",
+    "conflicts",
+    "summary",
 }
 
 
@@ -372,6 +382,25 @@ def validate_character_profile_bundle(data: Mapping[str, Any]) -> list[str]:
                 errors.extend([f"profiles[{idx}]: {message}" for message in validate_character_profile(profile)])
     if not isinstance(data.get("statistics"), Mapping):
         errors.append("character profile bundle statistics must be a mapping")
+    return errors
+
+
+def validate_scene_conflict_report(data: Mapping[str, Any]) -> list[str]:
+    errors = _validate_required_keys(data, _REQUIRED_SCENE_CONFLICT_REPORT_KEYS, "scene conflict report")
+    if not isinstance(data.get("schema_version"), int):
+        errors.append("scene conflict report schema_version must be an integer")
+    if not isinstance(data.get("book_id"), str) or not data.get("book_id"):
+        errors.append("scene conflict report book_id must be a non-empty string")
+    if not isinstance(data.get("series_id"), str) or not data.get("series_id"):
+        errors.append("scene conflict report series_id must be a non-empty string")
+    pair_evidence = data.get("pair_evidence")
+    if not isinstance(pair_evidence, Sequence) or isinstance(pair_evidence, (str, bytes)):
+        errors.append("scene conflict report pair_evidence must be a sequence")
+    conflicts = data.get("conflicts")
+    if not isinstance(conflicts, Sequence) or isinstance(conflicts, (str, bytes)):
+        errors.append("scene conflict report conflicts must be a sequence")
+    if not isinstance(data.get("summary"), Mapping):
+        errors.append("scene conflict report summary must be a mapping")
     return errors
 
 
