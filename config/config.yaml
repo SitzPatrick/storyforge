@@ -135,3 +135,24 @@ voice_planner:
   report_filename: voice_assignment_report.json
   preserve_user_edits: true
   dry_run_default: true
+  scoring:
+    schema_version: 1
+    continuity_bonus: 1200
+    manual_override_bonus: 1500
+    locked_binding_bonus: 800
+    inherited_binding_bonus: 500
+    narrator_suitability_bonus: 700
+    archetype_match_bonus: 450
+    age_match_bonus: 300
+    gender_match_bonus: 300
+    species_match_bonus: 350
+    prominence_match_bonus: 250
+    quality_weight: 1000
+    base_priority_weight: 10
+    language_match_bonus: 600
+    capability_match_bonus: 250
+    scene_separation_bonus: 200
+    similarity_cluster_penalty: 400
+    reuse_penalty: 300
+    scarcity_penalty_scale: 1
+    unknown_metadata_behavior: neutral

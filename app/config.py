@@ -7,6 +7,8 @@ from typing import Any, Sequence
 import os
 import yaml
 
+from app.voice_planner.scoring import ScoringConfig
+
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
 
@@ -73,6 +75,7 @@ class VoicePlannerSettings:
     report_filename: str
     preserve_user_edits: bool
     dry_run_default: bool
+    scoring: ScoringConfig = field(default_factory=ScoringConfig.default)
 
 
 @dataclass
@@ -91,6 +94,8 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
         raise FileNotFoundError(f"Config file not found: {path}")
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    voice_planner_raw = data.get("voice_planner") or {}
+    scoring_raw = voice_planner_raw.get("scoring") or {}
     normalization_raw = data.get("normalization") or {}
     rejection_labels = {
         "characters": list((normalization_raw.get("rejection_labels") or {}).get("characters", [])),
@@ -156,6 +161,7 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             report_filename=_as_str(data, ("voice_planner", "report_filename"), default="voice_assignment_report.json"),
             preserve_user_edits=bool(_as_bool(data, ("voice_planner", "preserve_user_edits"), default=True)),
             dry_run_default=bool(_as_bool(data, ("voice_planner", "dry_run_default"), default=True)),
+            scoring=ScoringConfig.from_mapping(scoring_raw),
         ),
     )
 

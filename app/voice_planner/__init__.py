@@ -29,6 +29,18 @@ from .models import (
     VoicePlan,
 )
 from .registry import dump_voice_registry, is_voice_selectable, load_voice_registry, selectable_voices, voice_registry_key, write_voice_registry
+from .scoring import (
+    CandidateScore,
+    ScoreComponent,
+    ScoreContext,
+    ScoringConfig,
+    ScoringError,
+    rank_voice_candidates,
+    score_voice_candidate,
+    score_voice_candidates,
+    serialize_candidate_scores,
+    validate_scoring_config,
+)
 from .schema import (
     SCHEMA_VERSIONS,
     canonical_json_dumps,
@@ -86,4 +98,14 @@ __all__ = [
     "validate_series_bindings",
     "validate_voice_plan",
     "validate_voice_registry",
+    "CandidateScore",
+    "ScoreComponent",
+    "ScoreContext",
+    "ScoringConfig",
+    "ScoringError",
+    "rank_voice_candidates",
+    "score_voice_candidate",
+    "score_voice_candidates",
+    "serialize_candidate_scores",
+    "validate_scoring_config",
 ]
