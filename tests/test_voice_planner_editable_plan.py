@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -54,6 +55,14 @@ def _voice_plan(*, lead_voice: str = "v1", support_voice: str = "v2", narrator_v
         statistics={"total_characters": 2},
         user_editable_notes=[],
     )
+
+
+def _snapshot(value):
+    return copy.deepcopy(value)
+
+
+def _assert_unchanged(value, baseline):
+    assert value == baseline
 
 
 def _registry(include_ghost: bool = True) -> dict[str, object]:
@@ -226,3 +235,175 @@ def test_validate_editable_voice_plan_rejects_duplicate_and_unknown_characters()
     codes = {issue.code for issue in issues}
     assert "duplicate-character" in codes
     assert "unknown-character" in codes
+
+
+def test_readonly_editable_plan_operations_do_not_mutate_source_inputs():
+    plan = _voice_plan()
+    editable = _wrap(plan)
+    registry = _registry()
+    payload = {
+        "schema_version": 1,
+        "book_id": plan.book_id,
+        "series_id": plan.series_id,
+        "source_analysis_hash": plan.source_analysis_hash,
+        "source_analysis_path": plan.source_analysis_path,
+        "generated_plan": plan,
+        "editable": {"narrator": {}, "characters": []},
+        "edit_history": [],
+        "retired_assignments": [],
+        "user_notes": [],
+        "warnings": [],
+        "validation_issues": [],
+    }
+
+    plan_baseline = _snapshot(plan)
+    registry_baseline = _snapshot(registry)
+    payload_baseline = _snapshot(payload)
+    editable_baseline = _snapshot(editable)
+
+    loaded = load_editable_voice_plan(payload, registry=registry)
+    issues = validate_editable_voice_plan(editable, registry=registry)
+    serialized = serialize_editable_voice_plan(editable)
+
+    _assert_unchanged(plan, plan_baseline)
+    _assert_unchanged(registry, registry_baseline)
+    _assert_unchanged(payload, payload_baseline)
+    _assert_unchanged(editable, editable_baseline)
+    assert loaded == editable
+    assert issues == []
+    assert serialized == serialize_editable_voice_plan(editable)
+
+
+def test_mutating_edit_operations_leave_inputs_unchanged_and_are_deterministic():
+    prior = _wrap(_voice_plan())
+    registry = _registry()
+    generated = _voice_plan(lead_voice="v3", support_voice="v2", narrator_voice="v2")
+    reduced = replace(generated, characters=[generated.characters[0]])
+    expanded = replace(
+        generated,
+        characters=[
+            *generated.characters,
+            replace(
+                generated.characters[0],
+                canonical_character_id="guest",
+                canonical_name="Guest",
+                assignment=_assignment("gamma", "v3", notes="guest notes"),
+            ),
+        ],
+    )
+
+    prior_baseline = _snapshot(prior)
+    generated_baseline = _snapshot(generated)
+    reduced_baseline = _snapshot(reduced)
+    expanded_baseline = _snapshot(expanded)
+    registry_baseline = _snapshot(registry)
+
+    manual = apply_manual_override(
+        prior,
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="lead",
+            requested_provider="alpha",
+            requested_provider_voice_id="v1",
+            locked=True,
+            manual_override=True,
+            notes="keep this performance",
+            override_reason="preferred delivery",
+        ),
+        registry=registry,
+    )
+    locked = set_assignment_lock(prior, target_kind="character", canonical_character_id="lead", locked=True, registry=registry)
+    merged_reduced = merge_voice_plans(manual, reduced, registry=registry)
+    merged_expanded = merge_voice_plans(locked, expanded, registry=registry)
+    repeat_a = merge_voice_plans(prior, generated, registry=registry)
+    repeat_b = merge_voice_plans(prior, generated, registry=registry)
+
+    _assert_unchanged(prior, prior_baseline)
+    _assert_unchanged(generated, generated_baseline)
+    _assert_unchanged(reduced, reduced_baseline)
+    _assert_unchanged(expanded, expanded_baseline)
+    _assert_unchanged(registry, registry_baseline)
+
+    assert merged_reduced.effective_plan.characters[0].canonical_character_id == "lead"
+    assert [character.canonical_character_id for character in merged_reduced.editable_plan.retired_assignments] == ["support"]
+    assert [character.canonical_character_id for character in merged_expanded.effective_plan.characters] == ["guest", "lead", "support"]
+    assert serialize_editable_voice_plan(repeat_a.editable_plan) == serialize_editable_voice_plan(repeat_b.editable_plan)
+
+
+def test_failed_overrides_and_failed_merges_do_not_partially_mutate_inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    prior = _wrap(_voice_plan())
+    registry = _registry()
+    bad_generated = replace(_voice_plan(), narrator=replace(_voice_plan().narrator, assignment=None))
+    payload = json.loads(serialize_editable_voice_plan(prior))
+    payload["schema_version"] = 99
+
+    prior_baseline = _snapshot(prior)
+    bad_generated_baseline = _snapshot(bad_generated)
+    registry_baseline = _snapshot(registry)
+    payload_baseline = _snapshot(payload)
+
+    with pytest.raises(ValueError):
+        apply_manual_override(
+            prior,
+            ManualOverride(
+                target_kind="character",
+                canonical_character_id="ghost",
+                requested_provider="alpha",
+                requested_provider_voice_id="v1",
+                locked=True,
+                manual_override=True,
+            ),
+            registry=registry,
+        )
+
+    with pytest.raises(ValueError):
+        merge_voice_plans(prior, bad_generated, registry=registry)
+
+    issues = validate_editable_voice_plan(payload, registry=registry)
+    assert issues
+
+    _assert_unchanged(prior, prior_baseline)
+    _assert_unchanged(bad_generated, bad_generated_baseline)
+    _assert_unchanged(registry, registry_baseline)
+    _assert_unchanged(payload, payload_baseline)
+
+    import app.voice_planner.editable_plan as editable_plan_module
+
+    path = tmp_path / "voice_plan.json"
+    path.write_text(serialize_editable_voice_plan(prior) + "\n", encoding="utf-8")
+    original_bytes = path.read_bytes()
+    monkeypatch.setattr(editable_plan_module.os, "replace", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("replace failed")))
+    with pytest.raises(OSError, match="replace failed"):
+        save_voice_plan_atomic(path, prior)
+    assert path.read_bytes() == original_bytes
+    _assert_unchanged(prior, prior_baseline)
+
+
+def test_user_editable_hash_changes_only_when_the_user_overlay_changes():
+    prior = _wrap(_voice_plan())
+    registry = _registry()
+    manual = apply_manual_override(
+        prior,
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="lead",
+            requested_provider="alpha",
+            requested_provider_voice_id="v1",
+            locked=True,
+            manual_override=True,
+            notes="keep this performance",
+            override_reason="preferred delivery",
+        ),
+        registry=registry,
+    )
+    refreshed = merge_voice_plans(manual, _voice_plan(lead_voice="v3", support_voice="v2", narrator_voice="v2"), registry=registry)
+
+    assert manual.effective_plan_hash == refreshed.editable_plan.effective_plan_hash
+    assert manual.generated_content_hash != refreshed.editable_plan.generated_content_hash
+    assert manual.user_editable_hash != refreshed.editable_plan.user_editable_hash
+    assert manual.characters[0].generated_assignment.provider_voice_id == "v1"
+    refreshed_lead = refreshed.editable_plan.characters[0]
+    assert refreshed_lead.generated_assignment.provider_voice_id == "v3"
+    assert refreshed_lead.effective_assignment is not None
+    assert refreshed_lead.effective_assignment.provider_voice_id == "v1"
+    assert len(refreshed.editable_plan.edit_history) > len(manual.edit_history)
