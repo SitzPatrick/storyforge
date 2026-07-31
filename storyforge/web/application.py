@@ -336,7 +336,7 @@ class WebApplicationService:
                 "report_path": root.work_dir / "render.report.json",
             },
             assembler_config={
-                "manifest": manifest,
+                "manifest": root.root / project.manifest_path,
                 "assembly_root": root.work_dir / "assemble",
                 "segment_root": root.work_dir / "render",
                 "assembly_contract_version": 1,
