@@ -275,6 +275,9 @@ class WebApplicationService:
         )
 
         story = self._json(normalized_dir / "normalized_story.json")
+        story["dialogue"] = self._json(normalized_dir / "normalized_dialogue.json").get(
+            "dialogue", ()
+        )
         registry = self._voice_registry(project, root)
         plan = load_editable_voice_plan(plan_path, registry=registry)
         registry_payload = {
