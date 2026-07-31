@@ -170,7 +170,7 @@ class FFmpegPackagingBackend(PackagingBackend):
                 }
             )
         output_container = str(format_info.get("format_name", "m4b"))
-        if path.suffix.lower() == ".m4b" and "ipod" in output_container.split(","):
+        if path.suffix.lower() == ".m4b":
             output_container = "m4b"
         return {
             "output_path": str(path),
