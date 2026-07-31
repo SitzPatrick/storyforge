@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from pathlib import Path
@@ -111,7 +112,7 @@ class ProductionStageAdapter:
         cached = self._cache.get(expected_input_identity)
         if cached is None:
             artifact_path = context.stage_root / f"{self.stage.value}.json"
-            report_path = context.report_root / f"{self.stage.value}.report.json"
+            report_path = context.project_root / f"{self.stage.value}.adapter.report.json"
             if artifact_path.is_file() and report_path.is_file():
                 try:
                     report = json.loads(report_path.read_text(encoding="utf-8"))
@@ -129,6 +130,8 @@ class ProductionStageAdapter:
                             identity=identity,
                             report_relative_path=str(report_path.relative_to(context.project_root)),
                         )
+                        payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+                        engine_refs = _payload_artifact_refs(self.stage, payload, context)
                         cached = StageResult(
                             stage=self.stage,
                             status=StageStatus.COMPLETED,
@@ -137,7 +140,11 @@ class ProductionStageAdapter:
                             completed=True,
                             cache_reused=True,
                             new_artifacts=False,
-                            artifact_refs=(ref,),
+                            artifact_refs=(
+                                engine_refs + (ref,)
+                                if self.stage == BuildStage.PACKAGE
+                                else (ref,) + engine_refs
+                            ),
                             stage_report_ref=str(report_path.relative_to(context.project_root)),
                             input_identity=expected_input_identity,
                             output_identity=identity,
@@ -194,9 +201,16 @@ class ProductionStageAdapter:
             )
         try:
             payload = self._run_engine(request, context)
+            if self.stage == BuildStage.ASSEMBLE:
+                _materialize_mastering_sidecars(payload)
+            if not isinstance(payload, Mapping):
+                raise ProductionAdapterError(
+                    f"{self.stage.value} engine returned non-mapping result"
+                )
+            _validate_engine_payload(self.stage, payload, context)
             artifact_path = context.stage_root / f"{self.stage.value}.json"
             output_identity = _write_json(artifact_path, payload)
-            report_path = context.report_root / f"{self.stage.value}.report.json"
+            report_path = context.project_root / f"{self.stage.value}.adapter.report.json"
             _write_json(
                 report_path,
                 {
@@ -226,6 +240,17 @@ class ProductionStageAdapter:
                 output_identity=output_identity,
                 requested=True,
                 reason="executed",
+            )
+            engine_refs = _payload_artifact_refs(self.stage, payload, context)
+            result = result.__class__(
+                **{
+                    **result.__dict__,
+                    "artifact_refs": (
+                        engine_refs + (ref,)
+                        if self.stage == BuildStage.PACKAGE
+                        else (ref,) + engine_refs
+                    ),
+                }
             )
             self._cache[expected_input_identity] = result
             return result
@@ -275,6 +300,171 @@ def _upstream_root(context: StageContext, stage: BuildStage) -> Path:
     if result and result.artifact_refs:
         return (context.project_root / result.artifact_refs[0].relative_path).parent
     return context.workspace_root / stage.value
+
+
+def _project_path(value: Any, context: StageContext, label: str) -> Path:
+    path = Path(str(value))
+    if not path.is_absolute():
+        path = context.project_root / path
+    path = path.resolve(strict=False)
+    project_root = context.project_root.resolve(strict=False)
+    try:
+        path.relative_to(project_root)
+    except ValueError as exc:
+        raise ProductionAdapterError(f"{label} escapes project workspace: {path}") from exc
+    return path
+
+
+def _materialize_mastering_sidecars(payload: Mapping[str, Any]) -> None:
+    """Bridge assembler's audio-suffixed sidecars to mastering's canonical name."""
+    for record in payload.get("chapter_results", ()) or ():
+        sidecar_value = record.get("sidecar_path") if isinstance(record, Mapping) else None
+        audio_value = record.get("output_artifact_path") if isinstance(record, Mapping) else None
+        if not sidecar_value or not audio_value:
+            continue
+        source = Path(str(sidecar_value))
+        target = source.parent / "chapter_sidecar.json"
+        if source.is_file() and not target.exists():
+            shutil.copyfile(source, target)
+
+
+def _require_file(path: Path, label: str) -> None:
+    if not path.is_file() or path.stat().st_size <= 0:
+        raise ProductionAdapterError(f"{label} missing or empty: {path}")
+
+
+def _validate_engine_payload(
+    stage: BuildStage, payload: Mapping[str, Any], context: StageContext
+) -> None:
+    """Reject success-shaped engine results whose durable outputs are absent."""
+    if stage in {BuildStage.PLAN, BuildStage.APPLY_EDITS, BuildStage.MANIFEST}:
+        return
+    raw_status = payload.get("completion_status", payload.get("status", ""))
+    status = str(getattr(raw_status, "value", raw_status)).lower()
+    if status not in {"complete", "complete-with-warnings", "completed", "passed"}:
+        errors = payload.get("errors") or []
+        raise ProductionAdapterError(
+            f"{stage.value} engine did not complete: {status or 'missing status'}"
+            + (f"; {errors[0]}" if errors else "")
+        )
+
+    if stage == BuildStage.RENDER:
+        report_path = context.report_root / "render.report.json"
+        _require_file(report_path, "render report")
+        units = payload.get("unit_results") or []
+        if not units:
+            raise ProductionAdapterError("render produced no render units")
+        for unit in units:
+            unit_status = str(unit.get("status", "")).lower()
+            if unit_status in {"skipped", "omitted"}:
+                continue
+            audio = Path(str(unit.get("output_path", "")))
+            sidecar = Path(str(unit.get("sidecar_path", "")))
+            audio = _project_path(audio, context, "render audio")
+            sidecar = _project_path(sidecar, context, "render sidecar")
+            _require_file(audio, "render segment audio")
+            _require_file(sidecar, "render segment sidecar")
+    elif stage == BuildStage.ASSEMBLE:
+        report_path = context.stage_root / "chapter_assembly_report.json"
+        _require_file(report_path, "assembly report")
+        chapters = payload.get("chapter_results") or []
+        if not chapters:
+            raise ProductionAdapterError("assembly produced no chapters")
+        for chapter in chapters:
+            if str(chapter.get("status", "")).lower() in {"blocked", "failed", "missing"}:
+                raise ProductionAdapterError(
+                    f"assembly chapter failed: {chapter.get('chapter_id', '<unknown>')}"
+                )
+            _require_file(
+                _project_path(chapter.get("output_artifact_path", ""), context, "chapter audio"),
+                "chapter audio",
+            )
+            _require_file(
+                _project_path(chapter.get("sidecar_path", ""), context, "chapter sidecar"),
+                "chapter sidecar",
+            )
+    elif stage == BuildStage.MASTER:
+        chapters = payload.get("chapter_results") or []
+        if not chapters:
+            raise ProductionAdapterError("mastering produced no chapters")
+        for chapter in chapters:
+            if str(chapter.get("status", "")).lower() in {"blocked", "failed", "missing"}:
+                raise ProductionAdapterError(
+                    f"mastering chapter failed: {chapter.get('chapter_id', '<unknown>')}"
+                )
+            _require_file(
+                _project_path(chapter.get("output_artifact_path", ""), context, "mastered audio"),
+                "mastered audio",
+            )
+            _require_file(
+                _project_path(chapter.get("sidecar_path", ""), context, "mastering sidecar"),
+                "mastering sidecar",
+            )
+    elif stage == BuildStage.PACKAGE:
+        output = _project_path(payload.get("output_artifact_path", ""), context, "final M4B")
+        sidecar = _project_path(payload.get("sidecar_path", ""), context, "package sidecar")
+        report = _project_path(payload.get("report_path", ""), context, "packaging report")
+        for path, label in (
+            (output, "final M4B"),
+            (sidecar, "package sidecar"),
+            (report, "packaging report"),
+        ):
+            _require_file(path, label)
+        if output.suffix.lower() != ".m4b":
+            raise ProductionAdapterError(f"packaging output is not an M4B: {output}")
+
+
+def _payload_artifact_refs(
+    stage: BuildStage, payload: Mapping[str, Any], context: StageContext
+) -> tuple[ArtifactRef, ...]:
+    """Return canonical project-relative refs for engine outputs plus the adapter artifact."""
+    refs: list[ArtifactRef] = []
+
+    def add(path_value: Any, report: str | None = None) -> None:
+        if not path_value:
+            return
+        path = _project_path(path_value, context, f"{stage.value} artifact")
+        if not path.is_file():
+            return
+        refs.append(
+            ArtifactRef(
+                stage=stage,
+                relative_path=str(path.relative_to(context.project_root)),
+                content_hash=hashlib.sha256(path.read_bytes()).hexdigest(),
+                identity=hashlib.sha256(path.read_bytes()).hexdigest(),
+                report_relative_path=report,
+            )
+        )
+
+    if stage == BuildStage.PACKAGE:
+        add(
+            payload.get("output_artifact_path"),
+            str(Path(str(payload.get("report_path"))).relative_to(context.project_root)),
+        )
+        add(payload.get("sidecar_path"))
+        add(payload.get("report_path"))
+    elif stage == BuildStage.RENDER:
+        add(context.report_root / "render.report.json")
+        for unit in payload.get("unit_results", ()):
+            add(unit.get("output_path"))
+            add(unit.get("sidecar_path"))
+    elif stage == BuildStage.ASSEMBLE:
+        add(context.stage_root / "chapter_assembly_report.json")
+        for chapter in payload.get("chapter_results", ()):
+            add(
+                chapter.get("output_artifact_path"),
+                str(
+                    Path(str(context.stage_root / "chapter_assembly_report.json")).relative_to(
+                        context.project_root
+                    )
+                ),
+            )
+            add(chapter.get("sidecar_path"))
+    elif stage == BuildStage.MASTER:
+        for chapter in payload.get("chapter_results", ()):
+            add(chapter.get("output_artifact_path"))
+            add(chapter.get("sidecar_path"))
+    return tuple(refs)
 
 
 class PlanStageAdapter(ProductionStageAdapter):

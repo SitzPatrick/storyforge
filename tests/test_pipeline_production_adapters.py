@@ -134,6 +134,15 @@ def test_real_production_adapters_complete_character_aware_pipeline(tmp_path: Pa
     report = PipelineOrchestrator(build_production_adapters()).build_storyforge_project(request)
 
     assert report.completion_status.value == "complete"
+    package_stage = next(stage for stage in report.stages if stage.stage.value == "package")
+    assert any(ref.relative_path.endswith(".m4b") for ref in package_stage.artifact_refs)
+    build_root = tmp_path / "project-1" / "book-9" / report.build_id
+    assert all(
+        (build_root / ref.relative_path).is_file()
+        for stage in report.stages
+        for ref in stage.artifact_refs
+    )
+    assert (build_root / "build_report.json").is_file()
     assert report.final_artifact_ref is not None
     assert {
         request.provider_voice_id for request in alpha.render_requests + beta.render_requests
@@ -144,6 +153,7 @@ def test_real_production_adapters_complete_character_aware_pipeline(tmp_path: Pa
 def test_production_adapter_persisted_cache_and_voice_change_rebuild(tmp_path: Path):
     manifest = _manifest(tmp_path)
     provider = FakeProviderAdapter("alpha")
+    beta = FakeProviderAdapter("beta")
     request = BuildRequest(
         project_id="project-1",
         book_id="book-9",
@@ -151,7 +161,10 @@ def test_production_adapter_persisted_cache_and_voice_change_rebuild(tmp_path: P
         voice_planning_config={},
         editable_plan=None,
         manifest_config={},
-        renderer_config={"manifest": manifest, "provider_adapters": {"alpha": provider}},
+        renderer_config={
+            "manifest": manifest,
+            "provider_adapters": {"alpha": provider, "beta": beta},
+        },
         assembler_config={},
         mastering_config={},
         packaging_config={},

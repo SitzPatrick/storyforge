@@ -373,17 +373,36 @@ class WebApplicationService:
             message = "; ".join(report.errors) or "pipeline produced a blocking result"
             self.projects.append_build_log(project.project_slug, message)
             raise WebApplicationError(f"build blocked: {message}")
+        workspace_rel = (
+            Path(project.project_id)
+            / str(normalized.get("book_id") or project.project_slug)
+            / report.build_id
+        )
+        package_result = next(
+            (stage for stage in report.stages if stage.stage.value == "package"), None
+        )
+        package_refs = package_result.artifact_refs if package_result else ()
+        final_ref = next(
+            (ref for ref in package_refs if ref.relative_path.lower().endswith(".m4b")), None
+        )
+        if final_ref is None:
+            raise WebApplicationError("build completed without a validated final M4B artifact")
         project.last_pipeline_build_id = report.build_id
         project.last_build_id = report.build_id
-        if report.final_artifact_ref:
-            project.artifact_map["final_m4b"] = report.final_artifact_ref.relative_path
-        if report.report_path:
-            report_path = Path(report.report_path)
-            project.artifact_map["build_report"] = str(
-                report_path.relative_to(root.root) if report_path.is_absolute() else report_path
-            )
-        else:
-            project.artifact_map["build_report"] = ""
+        project.artifact_map.update(
+            {
+                "render_report": str(workspace_rel / "render.report.json"),
+                "assembly_report": str(workspace_rel / "assemble" / "chapter_assembly_report.json"),
+                "mastering_report": str(workspace_rel / "master" / "master.json"),
+                "final_m4b": str(workspace_rel / final_ref.relative_path),
+                "build_report": str(workspace_rel / "build_report.json"),
+            }
+        )
+        for ref in package_refs:
+            if ref.relative_path.endswith("package_sidecar.json"):
+                project.artifact_map["package_sidecar"] = str(workspace_rel / ref.relative_path)
+            elif ref.relative_path.endswith("packaging_report.json"):
+                project.artifact_map["packaging_report"] = str(workspace_rel / ref.relative_path)
         self.projects.save_project(project)
         return {
             "build_id": report.build_id,
