@@ -20,6 +20,7 @@ services:
       STORYFORGE_CACHE_DIR: ${STORYFORGE_CACHE_DIR:-/data/cache}
       STORYFORGE_OUTPUT_DIR: ${STORYFORGE_OUTPUT_DIR:-/data/output}
       STORYFORGE_LOG_DIR: ${STORYFORGE_LOG_DIR:-/data/logs}
+      KOKORO_URL: ${KOKORO_URL:-http://Kokoro-FastAPI:8880}
 
     volumes:
       - ${STORYFORGE_CONFIG_PATH:-/mnt/user/appdata/storyforge/config}:/config
