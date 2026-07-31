@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Diagnostics{% endblock %}
+{% block content %}
+<h1>Diagnostics</h1>
+<p>Status: {{ diagnostics.status }}</p>
+<div class="grid cards">
+  {% for check in diagnostics.checks %}
+  <article class="card">
+    <h2>{{ check.name }}</h2>
+    <p>Status: <span class="pill {{ check.status }}">{{ check.status }}</span></p>
+    {% if check.value is not none %}<pre class="log small">{{ check.value }}</pre>{% endif %}
+    {% if check.error %}<p class="error-text">{{ check.error }}</p>{% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

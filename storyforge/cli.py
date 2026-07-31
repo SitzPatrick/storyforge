@@ -13,6 +13,7 @@ Commands:
   normalize   Normalize a completed analysis directory
   doctor      Check runtime dependencies and connectivity
   validate    Run the release-readiness audit
+  web         Start the StoryForge web controller
 
 Notes:
   - `storyforge --version` prints the package version.
@@ -51,6 +52,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         from .release_check import main as release_check_main
 
         return release_check_main(command_args)
+    if command == "web":
+        from .web.app import main as web_main
+
+        return web_main(command_args)
 
     print(f"Unknown command: {command}", file=sys.stderr)
     print(_HELP.strip(), file=sys.stderr)

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Project {{ project.project_name }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>{{ project.project_name }}</h1>
+    <p class="muted">{{ project.project_slug }}</p>
+    <p>State: <span class="pill {{ project.state }}">{{ project.state }}</span></p>
+    <p>Analysis state: {{ project.analysis_state }}</p>
+    <p>Source: {{ project.source_book }}</p>
+    <p>Voice: {{ project.selected_voice or 'default' }}</p>
+  </div>
+  <div class="actions stack">
+    <form action="/projects/{{ project.project_slug }}/analyze" method="post"><button class="button" type="submit">Analyze</button></form>
+    <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Build</button></form>
+    <a class="button" href="/projects/{{ project.project_slug }}/build">Build log</a>
+    <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
+  </div>
+</section>
+
+<div class="grid cards">
+  <article class="card">
+    <h2>Metadata</h2>
+    <p>Project ID: {{ project.project_id }}</p>
+    <p>Created: {{ project.created_at }}</p>
+    <p>Updated: {{ project.updated_at }}</p>
+    <p>Last build ID: {{ project.last_build_id or '—' }}</p>
+    <p>Selected voice: {{ project.selected_voice or '—' }}</p>
+    <p>Narrator: {{ project.narrator or '—' }}</p>
+  </article>
+  <article class="card">
+    <h2>Current job</h2>
+    <p>Status: {{ status.status }}</p>
+    <p>Stage: {{ status.stage }}</p>
+    <p>Chapter: {{ status.current_chapter or '—' }} / {{ status.total_chapters or '—' }}</p>
+    <p>Message: {{ status.message or '—' }}</p>
+    <p>Started: {{ status.started_at or '—' }}</p>
+    <p>Finished: {{ status.finished_at or '—' }}</p>
+    <div class="actions">
+      <a class="button" href="/projects/{{ project.project_slug }}/build">Open build</a>
+      <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Open artifacts</a>
+    </div>
+  </article>
+</div>
+{% endblock %}

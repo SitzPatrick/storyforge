@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Create Project{% endblock %}
+{% block content %}
+<h1>Create project</h1>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<form class="form card" action="/projects" method="post" enctype="multipart/form-data">
+  <label>Project name
+    <input type="text" name="project_name" required>
+  </label>
+  <label>Project slug (optional)
+    <input type="text" name="project_slug" placeholder="my-book-project">
+  </label>
+  <fieldset>
+    <legend>Source book</legend>
+    <label><input type="radio" name="source_mode" value="upload" checked> Upload EPUB</label>
+    <input type="file" name="epub_file" accept=".epub,application/epub+zip">
+    <label><input type="radio" name="source_mode" value="existing"> Use existing EPUB from /data/books</label>
+    <select name="existing_book">
+      <option value="">Choose a book…</option>
+      {% for book in books %}
+      <option value="{{ book.relative_to(settings.books_dir) }}">{{ book.relative_to(settings.books_dir) }}</option>
+      {% endfor %}
+    </select>
+  </fieldset>
+  <button class="button primary" type="submit">Create project</button>
+</form>
+{% endblock %}

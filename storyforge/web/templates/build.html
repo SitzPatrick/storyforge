@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Build {{ project.project_name }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Build</h1>
+    <p>{{ project.project_name }} — {{ project.project_slug }}</p>
+    <p>Status: <span id="job-status" class="pill {{ status.status }}">{{ status.status }}</span></p>
+    <p>Stage: <span id="job-stage">{{ status.stage }}</span></p>
+    <p>Chapter: <span id="job-chapter">{{ status.current_chapter or '—' }}</span> / <span id="job-total">{{ status.total_chapters or '—' }}</span></p>
+    <p>Message: <span id="job-message">{{ status.message or '—' }}</span></p>
+    <p>Started: <span id="job-started">{{ status.started_at or '—' }}</span></p>
+    <p>Finished: <span id="job-finished">{{ status.finished_at or '—' }}</span></p>
+  </div>
+  <div class="actions stack">
+    <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Start build</button></form>
+    <form action="/projects/{{ project.project_slug }}/resume" method="post"><button class="button" type="submit">Resume</button></form>
+    <form action="/projects/{{ project.project_slug }}/cancel" method="post"><button class="button danger" type="submit">Cancel</button></form>
+    <a class="button" href="/projects/{{ project.project_slug }}">Project</a>
+    <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
+  </div>
+</section>
+
+<div class="card">
+  <h2>Live log</h2>
+  <pre id="build-log" class="log">{% for line in status.build_log_tail %}{{ line }}
+{% endfor %}</pre>
+</div>
+
+<script>
+window.STORYFORGE_BUILD_PAGE = {
+  slug: {{ project.project_slug|tojson }}
+};
+</script>
+{% endblock %}

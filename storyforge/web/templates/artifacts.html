@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Artifacts {{ project.project_name }}{% endblock %}
+{% block content %}
+<h1>Artifacts</h1>
+<p>{{ project.project_name }} — {{ project.project_slug }}</p>
+<div class="card">
+  <ul class="file-list">
+    {% for artifact in artifacts %}
+    <li><a href="/projects/{{ project.project_slug }}/download/{{ artifact.relative_to(project_root) }}">{{ artifact.relative_to(project_root) }}</a></li>
+    {% else %}
+    <li>No artifacts yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

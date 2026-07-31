@@ -65,6 +65,13 @@ If you only need the runtime package:
 pip install -e .
 ```
 
+## Web Interface / Unraid
+
+StoryForge now includes a lightweight personal web controller for Unraid.
+It runs in a single Docker container, uses the existing StoryForge implementation, and stores all persistent state under mapped volumes.
+
+See `docs/unraid-web.md` for deployment, storage mappings, Kokoro setup, uploads, builds, logs, artifacts, cancellation, and update instructions.
+
 ## Development setup
 
 ```bash

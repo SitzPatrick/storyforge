@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>StoryForge</Name>
+  <Repo>storyforge:latest</Repo>
+  <Registry>https://hub.docker.com/r/storyforge/storyforge</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support></Support>
+  <Project></Project>
+  <Overview>Personal Unraid web controller for StoryForge.</Overview>
+  <Category>MediaApp:Books</Category>
+  <WebUI>http://[IP]:[PORT:8787]</WebUI>
+  <TemplateURL></TemplateURL>
+  <Icon></Icon>
+  <DonateText></DonateText>
+  <DonateLink></DonateLink>
+  <Requires></Requires>
+  <Config Name="Web UI Port" Target="8787" Default="8787" Mode="tcp" Description="StoryForge web interface port" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID" Type="Variable" Display="always" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID" Type="Variable" Display="always" Required="true" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="UMASK value" Type="Variable" Display="always" Required="true" Mask="false">022</Config>
+  <Config Name="TZ" Target="TZ" Default="America/New_York" Mode="" Description="Time zone" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
+  <Config Name="KOKORO_URL" Target="KOKORO_URL" Default="http://kokoro:8880" Mode="" Description="Kokoro base URL" Type="Variable" Display="always" Required="false" Mask="false">http://kokoro:8880</Config>
+  <Config Name="Config path" Target="/config" Default="/mnt/user/appdata/storyforge/config" Mode="rw" Description="Persistent application config" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/storyforge/config</Config>
+  <Config Name="Books path" Target="/data/books" Default="/mnt/user/storyforge/books" Mode="rw" Description="Source EPUB library" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/storyforge/books</Config>
+  <Config Name="Projects path" Target="/data/projects" Default="/mnt/user/storyforge/projects" Mode="rw" Description="Project state and artifacts" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/storyforge/projects</Config>
+  <Config Name="Cache path" Target="/data/cache" Default="/mnt/user/storyforge/cache" Mode="rw" Description="Persistent cache" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/storyforge/cache</Config>
+  <Config Name="Output path" Target="/data/output" Default="/mnt/user/storyforge/output" Mode="rw" Description="Generated output" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/storyforge/output</Config>
+  <Config Name="Logs path" Target="/data/logs" Default="/mnt/user/appdata/storyforge/logs" Mode="rw" Description="Build logs and diagnostics" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/storyforge/logs</Config>
+  <Network Type="Bridge" />
+</Container>

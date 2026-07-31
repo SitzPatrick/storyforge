@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}StoryForge Dashboard{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Open projects, start builds, review logs, and download artifacts from your Unraid box.</p>
+  </div>
+  <div class="actions">
+    <a class="button primary" href="/projects/new">Create project</a>
+    <a class="button" href="/diagnostics">Diagnostics</a>
+  </div>
+</section>
+
+{% if active %}
+<div class="alert warning">Active job: {{ active.project_slug }} — {{ active.status }} / {{ active.stage }}</div>
+{% endif %}
+
+<div class="grid cards">
+  {% for project in projects %}
+  <article class="card">
+    <h2><a href="/projects/{{ project.project_slug }}">{{ project.project_name }}</a></h2>
+    <p class="muted">Slug: {{ project.project_slug }}</p>
+    <p>Status: <span class="pill {{ project.state }}">{{ project.state }}</span></p>
+    <p>Analysis: {{ project.analysis_state }}</p>
+    <p>Last build: {{ project.last_build_id or '—' }}</p>
+    <p>Updated: {{ project.updated_at }}</p>
+    <div class="actions">
+      <a class="button" href="/projects/{{ project.project_slug }}">Open</a>
+      <a class="button" href="/projects/{{ project.project_slug }}/build">Build</a>
+      <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
+    </div>
+  </article>
+  {% else %}
+  <p>No projects yet. Create one to begin.</p>
+  {% endfor %}
+</div>
+{% endblock %}
