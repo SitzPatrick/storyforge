@@ -377,9 +377,13 @@ class WebApplicationService:
         project.last_build_id = report.build_id
         if report.final_artifact_ref:
             project.artifact_map["final_m4b"] = report.final_artifact_ref.relative_path
-        project.artifact_map["build_report"] = (
-            str(report.report_path.relative_to(root.root)) if report.report_path else ""
-        )
+        if report.report_path:
+            report_path = Path(report.report_path)
+            project.artifact_map["build_report"] = str(
+                report_path.relative_to(root.root) if report_path.is_absolute() else report_path
+            )
+        else:
+            project.artifact_map["build_report"] = ""
         self.projects.save_project(project)
         return {
             "build_id": report.build_id,
