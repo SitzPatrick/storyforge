@@ -169,9 +169,12 @@ class FFmpegPackagingBackend(PackagingBackend):
                     "book_id": chapter.get("tags", {}).get("book_id"),
                 }
             )
+        output_container = str(format_info.get("format_name", "m4b"))
+        if path.suffix.lower() == ".m4b" and "ipod" in output_container.split(","):
+            output_container = "m4b"
         return {
             "output_path": str(path),
-            "output_container": format_info.get("format_name", "m4b"),
+            "output_container": output_container,
             "audio_codec": audio_stream.get("codec_name", "aac"),
             "audio_bitrate_kbps": (
                 int(float(audio_stream.get("bit_rate", 0)) / 1000)
