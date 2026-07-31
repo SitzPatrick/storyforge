@@ -154,16 +154,17 @@ class FFmpegPackagingBackend(PackagingBackend):
         )
         chapters = []
         for chapter in probe.get("chapters", []):
+            start_seconds = float(chapter.get("start_time", 0) or 0)
+            end_seconds = float(chapter.get("end_time", 0) or 0)
             chapters.append(
                 {
                     "chapter_id": chapter.get("tags", {}).get("chapter_id"),
                     "chapter_title": chapter.get("tags", {}).get("title"),
                     "chapter_order": int(chapter.get("tags", {}).get("chapter_order", 0) or 0),
                     "mastered_chapter_id": chapter.get("tags", {}).get("mastered_chapter_id"),
-                    "start_time": int(chapter.get("start_time", 0)),
-                    "end_time": int(chapter.get("end_time", 0)),
-                    "duration_ticks": int(chapter.get("end_time", 0))
-                    - int(chapter.get("start_time", 0)),
+                    "start_time": int(round(start_seconds * 1_000_000)),
+                    "end_time": int(round(end_seconds * 1_000_000)),
+                    "duration_ticks": int(round((end_seconds - start_seconds) * 1_000_000)),
                     "timebase": 1_000_000,
                     "book_id": chapter.get("tags", {}).get("book_id"),
                 }
