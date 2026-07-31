@@ -280,6 +280,13 @@ class WebApplicationService:
         manifest = self._json(root.root / project.manifest_path)
         settings = load_settings()
         registry = self._voice_registry(project, root)
+        registry_payload = {
+            **registry,
+            "voices": [
+                asdict(voice) if hasattr(voice, "__dataclass_fields__") else voice
+                for voice in registry.get("voices", ())
+            ],
+        }
         from app.renderer.providers import KokoroProviderAdapter
 
         provider_adapters: dict[str, Any] = {}
@@ -314,9 +321,9 @@ class WebApplicationService:
             project_id=project.project_id,
             book_id=str(normalized.get("book_id") or project.project_slug),
             story_input=normalized,
-            voice_planning_config={"voice_registry": registry, "editable_plan": editable},
+            voice_planning_config={"voice_registry": registry_payload, "editable_plan": editable},
             editable_plan=editable,
-            manifest_config={"voice_registry": registry, "manifest": manifest},
+            manifest_config={"voice_registry": registry_payload, "manifest": manifest},
             renderer_config={
                 "manifest": manifest,
                 "provider_adapters": provider_adapters,
