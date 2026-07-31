@@ -325,7 +325,7 @@ class WebApplicationService:
             editable_plan=editable,
             manifest_config={"voice_registry": registry_payload, "manifest": manifest},
             renderer_config={
-                "manifest": manifest,
+                "manifest": root.root / project.manifest_path,
                 "provider_adapters": provider_adapters,
                 "render_root": root.work_dir / "render",
                 "output_format": "wav",
