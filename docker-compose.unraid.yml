@@ -9,9 +9,6 @@ services:
     ports:
       - "${STORYFORGE_HOST_PORT:-8790}:8787"
     environment:
-      PUID: ${PUID:-99}
-      PGID: ${PGID:-100}
-      UMASK: ${UMASK:-022}
       TZ: ${TZ:-America/New_York}
       STORYFORGE_CONFIG: ${STORYFORGE_CONFIG:-/config/config.yaml}
       STORYFORGE_HOST: ${STORYFORGE_HOST:-0.0.0.0}
