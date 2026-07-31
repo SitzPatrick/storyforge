@@ -9,9 +9,9 @@ from app.config import load_settings
 from app.diagnostics import _check_binary, _check_dir_writable
 from app.kokoro_client import KokoroClient
 
+from .application import WebApplicationService
 from .config import WebSettings, load_web_settings
 from .jobs import JobManager
-from .application import WebApplicationService
 from .projects import ProjectManager
 
 

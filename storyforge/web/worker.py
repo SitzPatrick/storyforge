@@ -26,7 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     except WebApplicationError as exc:
         print(f"BLOCKED: {exc}")
         return 2
-    print(f"{args.action} completed: {result.get('analysis_dir', result.get('output_dir', 'application layer'))}")
+    output_path = result.get("analysis_dir", result.get("output_dir", "application layer"))
+    print(f"{args.action} completed: {output_path}")
     return 0
 
 

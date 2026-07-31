@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .config import WebSettings, load_web_settings
 from .application import ManualOverride, WebApplicationError
+from .config import WebSettings, load_web_settings
 from .jobs import JobBusyError
 from .projects import ProjectError
 from .security import SecurityError, ensure_within_root, secure_filename, validate_slug
@@ -144,7 +144,9 @@ def create_app(
                 plan = application.load_voice_plan(project)
             except Exception as exc:  # noqa: BLE001
                 error = str(exc)
-        return render("voice_plan.html", request, project=project, plan=plan, error=error, settings=settings)
+        return render(
+            "voice_plan.html", request, project=project, plan=plan, error=error, settings=settings
+        )
 
     @app.get("/projects/{slug}/artifacts")
     def artifacts_page(request: Request, slug: str):
@@ -242,7 +244,10 @@ def create_app(
             raise HTTPException(status_code=503, detail="application service unavailable")
         try:
             from app.voice_planner import serialize_editable_voice_plan
-            return __import__("json").loads(serialize_editable_voice_plan(application.load_voice_plan(project)))
+
+            return __import__("json").loads(
+                serialize_editable_voice_plan(application.load_voice_plan(project))
+            )
         except WebApplicationError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
 
@@ -256,6 +261,7 @@ def create_app(
             payload = await request.json()
             updated = application.save_voice_plan(project, payload)
             from app.voice_planner import serialize_editable_voice_plan
+
             return __import__("json").loads(serialize_editable_voice_plan(updated))
         except (WebApplicationError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
@@ -280,6 +286,7 @@ def create_app(
             )
             updated = application.edit_voice_plan(project, override)
             from app.voice_planner import serialize_editable_voice_plan
+
             return __import__("json").loads(serialize_editable_voice_plan(updated))
         except (WebApplicationError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None

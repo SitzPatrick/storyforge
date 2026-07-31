@@ -4,7 +4,7 @@ paths:
   temp_dir: ./temp
   log_dir: ./logs
 kokoro:
-  api_url: http://127.0.0.1:8880/v1
+  api_url: http://Kokoro-FastAPI:8880/v1
   api_key: not-needed
   model: kokoro
   voice: af_heart
@@ -21,8 +21,8 @@ conversion:
   resume_on_startup: true
 analysis:
   llm_provider: ollama
-  ollama_url: http://127.0.0.1:11434
-  ollama_model: llama3.2:1b
+  ollama_url: http://ollama:11434
+  ollama_model: qwen2.5:7b-instruct
   analysis_chunk_size: 6000
   cache_enabled: true
   cache_directory: analysis

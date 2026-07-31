@@ -18,9 +18,17 @@ def web_settings(tmp_path: Path) -> WebSettings:
     for path in paths:
         path.mkdir(parents=True)
     return WebSettings(
-        host="127.0.0.1", port=8787, config_dir=data / "config", data_dir=data,
-        books_dir=data / "books", projects_dir=data / "projects", cache_dir=data / "cache",
-        output_dir=data / "output", log_dir=data / "logs", kokoro_url="http://unused", max_upload_bytes=100,
+        host="127.0.0.1",
+        port=8787,
+        config_dir=data / "config",
+        data_dir=data,
+        books_dir=data / "books",
+        projects_dir=data / "projects",
+        cache_dir=data / "cache",
+        output_dir=data / "output",
+        log_dir=data / "logs",
+        kokoro_url="http://unused",
+        max_upload_bytes=100,
     )
 
 
@@ -50,7 +58,9 @@ def test_build_uses_orchestrator_and_reports_missing_production_adapters(web_set
     root = manager.project_paths(project.project_slug).root
     normalized = root / "work" / "normalized"
     normalized.mkdir(parents=True)
-    (normalized / "normalized_story.json").write_text(json.dumps({"book_id": "book"}), encoding="utf-8")
+    (normalized / "normalized_story.json").write_text(
+        json.dumps({"book_id": "book"}), encoding="utf-8"
+    )
     voice_plan = root / "work" / "voice_plan.json"
     voice_plan.write_text("{}", encoding="utf-8")
     manifest = root / "work" / "synthesis_manifest.json"
@@ -62,5 +72,7 @@ def test_build_uses_orchestrator_and_reports_missing_production_adapters(web_set
     project.manifest_path = "work/synthesis_manifest.json"
     manager.save_project(project)
 
-    with pytest.raises(WebApplicationError, match="application pipeline|production pipeline stage adapters"):
+    with pytest.raises(
+        WebApplicationError, match="application pipeline|production pipeline stage adapters"
+    ):
         WebApplicationService(web_settings, manager).build(project)
