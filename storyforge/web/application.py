@@ -79,6 +79,7 @@ class WebApplicationService:
         analysis_dir = self._analysis_dir(project, root)
         output_dir = root.work_dir / "normalized"
         result = normalize_analysis(analysis_dir, output_dir)
+        self._ensure_character_pipeline_normalized_fields(project, analysis_dir, output_dir)
         project.normalized_path = str(output_dir.relative_to(root.root))
         project.normalized_analysis_path = project.normalized_path
         project.normalization_status = "completed"
@@ -92,6 +93,57 @@ class WebApplicationService:
         )
         self.projects.save_project(project)
         return result
+
+    def _ensure_character_pipeline_normalized_fields(
+        self, project: ProjectRecord, analysis_dir: Path, output_dir: Path
+    ) -> None:
+        """Add canonical fields required by the character-aware planner."""
+        story_path = output_dir / "normalized_story.json"
+        scenes_path = output_dir / "normalized_scenes.json"
+        dialogue_path = output_dir / "normalized_dialogue.json"
+        story = self._json(story_path)
+        scenes_payload = self._json(scenes_path)
+        dialogue_payload = self._json(dialogue_path)
+        scenes = list(scenes_payload.get("scenes", ()))
+        for index, scene in enumerate(scenes, start=1):
+            scene.setdefault("scene_id", f"scene-{index}")
+            scene.setdefault("scene_order", index)
+        dialogue = list(dialogue_payload.get("dialogue", ()))
+        for index, record in enumerate(dialogue, start=1):
+            record.setdefault("dialogue_id", f"dialogue-{index}")
+            record.setdefault("order", int(record.get("paragraph_index") or index))
+            if not record.get("scene_id"):
+                paragraph = int(record.get("paragraph_index") or 0)
+                matching = next(
+                    (
+                        scene
+                        for scene in scenes
+                        if int(scene.get("start_paragraph") or 0)
+                        <= paragraph
+                        <= int(scene.get("end_paragraph") or paragraph)
+                    ),
+                    scenes[0] if scenes else None,
+                )
+                if matching:
+                    record["scene_id"] = matching["scene_id"]
+        story.setdefault("book_id", project.project_slug)
+        story.setdefault("series_id", project.series_id or project.project_slug)
+        story.setdefault("source_analysis_path", str(analysis_dir))
+        story.setdefault(
+            "source_analysis_hash",
+            hashlib.sha256((analysis_dir / "story.json").read_bytes()).hexdigest(),
+        )
+        story["scenes"] = scenes
+        scenes_payload["scenes"] = scenes
+        dialogue_payload["dialogue"] = dialogue
+        for path, payload in (
+            (story_path, story),
+            (scenes_path, scenes_payload),
+            (dialogue_path, dialogue_payload),
+        ):
+            path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+            )
 
     def plan(self, project: ProjectRecord) -> dict[str, Any]:
         root = self.projects.project_paths(project.project_slug)
