@@ -225,6 +225,13 @@ class WebApplicationService:
         story = self._json(normalized_dir / "normalized_story.json")
         registry = self._voice_registry(project, root)
         plan = load_editable_voice_plan(plan_path, registry=registry)
+        registry_payload = {
+            **registry,
+            "voices": [
+                asdict(voice) if hasattr(voice, "__dataclass_fields__") else voice
+                for voice in registry.get("voices", ())
+            ],
+        }
         config = {
             "voice_planner": {
                 "renderer_contract_version": 1,
@@ -234,7 +241,7 @@ class WebApplicationService:
         result = build_synthesis_manifest(
             story,
             plan,
-            registry,
+            registry_payload,
             config,
             source_artifacts=project.artifact_map,
             created_by="storyforge.web",
