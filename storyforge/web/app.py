@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .config import WebSettings, load_web_settings
+from .application import ManualOverride, WebApplicationError
 from .jobs import JobBusyError
 from .projects import ProjectError
 from .security import SecurityError, ensure_within_root, secure_filename, validate_slug
@@ -132,6 +133,19 @@ def create_app(
         status = services.projects.load_status(project.project_slug)
         return render("build.html", request, project=project, status=status, settings=settings)
 
+    @app.get("/projects/{slug}/voice-plan")
+    def voice_plan_page(request: Request, slug: str):
+        project = load_project_or_404(slug)
+        application = getattr(services, "application", None)
+        plan = None
+        error = None
+        if application is not None:
+            try:
+                plan = application.load_voice_plan(project)
+            except Exception as exc:  # noqa: BLE001
+                error = str(exc)
+        return render("voice_plan.html", request, project=project, plan=plan, error=error, settings=settings)
+
     @app.get("/projects/{slug}/artifacts")
     def artifacts_page(request: Request, slug: str):
         project = load_project_or_404(slug)
@@ -173,6 +187,26 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(exc)) from None
         return RedirectResponse(url=f"/projects/{project.project_slug}/build", status_code=303)
 
+    @app.post("/projects/{slug}/normalize")
+    def normalize_project(slug: str):
+        return _start_workflow(slug, "normalize")
+
+    @app.post("/projects/{slug}/plan")
+    def plan_project(slug: str):
+        return _start_workflow(slug, "plan")
+
+    @app.post("/projects/{slug}/manifest")
+    def manifest_project(slug: str):
+        return _start_workflow(slug, "manifest")
+
+    def _start_workflow(slug: str, action: str):
+        project = load_project_or_404(slug)
+        try:
+            services.jobs.start(project, action)
+        except JobBusyError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from None
+        return RedirectResponse(url=f"/projects/{project.project_slug}/build", status_code=303)
+
     @app.post("/projects/{slug}/build")
     def build_project(slug: str):
         project = load_project_or_404(slug)
@@ -199,6 +233,56 @@ def create_app(
         except JobBusyError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from None
         return RedirectResponse(url=f"/projects/{project.project_slug}/build", status_code=303)
+
+    @app.get("/projects/{slug}/voice-plan.json")
+    def voice_plan_json(slug: str):
+        project = load_project_or_404(slug)
+        application = getattr(services, "application", None)
+        if application is None:
+            raise HTTPException(status_code=503, detail="application service unavailable")
+        try:
+            from app.voice_planner import serialize_editable_voice_plan
+            return __import__("json").loads(serialize_editable_voice_plan(application.load_voice_plan(project)))
+        except WebApplicationError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+
+    @app.post("/projects/{slug}/voice-plan")
+    async def save_voice_plan(slug: str, request: Request):
+        project = load_project_or_404(slug)
+        application = getattr(services, "application", None)
+        if application is None:
+            raise HTTPException(status_code=503, detail="application service unavailable")
+        try:
+            payload = await request.json()
+            updated = application.save_voice_plan(project, payload)
+            from app.voice_planner import serialize_editable_voice_plan
+            return __import__("json").loads(serialize_editable_voice_plan(updated))
+        except (WebApplicationError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    @app.post("/projects/{slug}/voice-plan/edit")
+    async def edit_voice_plan(request: Request, slug: str):
+        project = load_project_or_404(slug)
+        application = getattr(services, "application", None)
+        if application is None:
+            raise HTTPException(status_code=503, detail="application service unavailable")
+        payload = await request.json()
+        try:
+            override = ManualOverride(
+                target_kind=str(payload.get("target_kind", "character")),
+                canonical_character_id=payload.get("canonical_character_id"),
+                requested_provider=payload.get("requested_provider"),
+                requested_provider_voice_id=payload.get("requested_provider_voice_id"),
+                locked=payload.get("locked"),
+                manual_override=payload.get("manual_override"),
+                notes=payload.get("notes"),
+                override_reason=payload.get("override_reason"),
+            )
+            updated = application.edit_voice_plan(project, override)
+            from app.voice_planner import serialize_editable_voice_plan
+            return __import__("json").loads(serialize_editable_voice_plan(updated))
+        except (WebApplicationError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
 
     @app.get("/projects/{slug}/download/{relative_path:path}")
     def download_artifact(slug: str, relative_path: str):

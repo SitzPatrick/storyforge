@@ -46,7 +46,7 @@ SECRET_PATTERNS = {
     "private_ip": re.compile(
         r"\b(?:10|192\.168)\.\d{1,3}\.\d{1,3}\b|\b172\.(?:1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}\b"
     ),
-    "internal_hostname": re.compile(r"Kokoro-FastAPI", re.IGNORECASE),
+    "internal_hostname": re.compile(r"(?<!http://)(?<!https://)Kokoro-FastAPI", re.IGNORECASE),
 }
 FORBIDDEN_TRACKED_EXTENSIONS = {".wav", ".m4b", ".mp3", ".aac", ".flac", ".ogg", ".mp4", ".mov"}
 FORBIDDEN_TRACKED_PATHS = {

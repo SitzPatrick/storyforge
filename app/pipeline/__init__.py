@@ -1,4 +1,5 @@
 from .adapters import FakeStageAdapter, StageAdapter, StageContext
+from .production_adapters import ProductionAdapterError, ProductionStageAdapter, build_production_adapters
 from .engine import PipelineOrchestrator, PipelineOrchestratorError, build_storyforge_project, resume_build
 from .graph import STAGE_DEPENDENCIES, STAGE_ORDER, breadth_first_dependencies, dependency_chain, is_stage_requested, requested_stages, stage_index, target_to_stage, topo_requested_stages, validate_stage_graph
 from .models import (
@@ -39,6 +40,9 @@ __all__ = [
     "FakeStageAdapter",
     "PipelineOrchestrator",
     "PipelineOrchestratorError",
+    "ProductionAdapterError",
+    "ProductionStageAdapter",
+    "build_production_adapters",
     "RebuildPolicy",
     "StageAction",
     "StageAdapter",
