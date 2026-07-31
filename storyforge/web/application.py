@@ -284,16 +284,22 @@ class WebApplicationService:
 
         provider_adapters: dict[str, Any] = {}
         for provider in {
-            str(v.get("provider")) for v in registry.get("voices", ()) if v.get("provider")
+            str(v.provider if hasattr(v, "provider") else v.get("provider"))
+            for v in registry.get("voices", ())
+            if (v.provider if hasattr(v, "provider") else v.get("provider"))
         }:
             provider_adapters[provider] = KokoroProviderAdapter(
                 api_url=settings.kokoro.api_url,
                 api_key=settings.kokoro.api_key,
                 model=settings.kokoro.model,
                 allowed_voice_ids={
-                    str(v.get("provider_voice_id"))
+                    str(
+                        v.provider_voice_id
+                        if hasattr(v, "provider_voice_id")
+                        else v.get("provider_voice_id")
+                    )
                     for v in registry.get("voices", ())
-                    if v.get("provider") == provider
+                    if (v.provider if hasattr(v, "provider") else v.get("provider")) == provider
                 },
             )
         chapters = self._chapter_structure(normalized, manifest)
