@@ -3,13 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import struct
+import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Sequence
 from urllib.parse import urljoin
 
 import requests
-import time
 
 DEFAULT_STATIC_VOICES = [
     "af",
@@ -113,7 +114,7 @@ class KokoroClient:
 
     def health_check(self) -> str:
         attempts = [self.openapi_url, self.models_url, self.voices_url, self.docs_url]
-        errors: List[str] = []
+        errors: list[str] = []
         for url in attempts:
             try:
                 response = requests.get(url, timeout=self.timeout)
@@ -125,7 +126,8 @@ class KokoroClient:
         raise KokoroHealthError(
             "Kokoro health check failed. Tried: "
             + "; ".join(errors)
-            + ". Check Docker network attachment, published port mapping, container name resolution, and the configured KOKORO_API_URL."
+            + ". Check Docker network attachment, published port mapping, "
+            "container name resolution, and the configured KOKORO_API_URL."
         )
 
     def fetch_openapi_schema(self) -> dict:
@@ -133,7 +135,7 @@ class KokoroClient:
         response.raise_for_status()
         return response.json()
 
-    def list_voices(self) -> List[str]:
+    def list_voices(self) -> list[str]:
         try:
             response = requests.get(self.voices_url, timeout=self.timeout)
             if response.status_code >= 400:
@@ -158,8 +160,10 @@ class KokoroClient:
     def validate_voice(self, voice: str) -> None:
         if self.voice_is_supported(voice):
             return
+        supported = ", ".join(self.list_voices())
         raise KokoroVoiceError(
-            f"Voice '{voice}' was not listed by the Kokoro instance. Supported/documented voices: {', '.join(self.list_voices())}"
+            f"Voice '{voice}' was not listed by the Kokoro instance. "
+            f"Supported/documented voices: {supported}"
         )
 
     def synthesize(self, text: str, output_path: Path) -> KokoroResult:
@@ -209,6 +213,7 @@ class KokoroClient:
                     )
                 else:
                     output_path.parent.mkdir(parents=True, exist_ok=True)
+                    body = _repair_streaming_wav_header(body)
                     output_path.write_bytes(body)
                     return KokoroResult(
                         content_type=content_type or "application/octet-stream",
@@ -226,8 +231,8 @@ class KokoroClient:
         raise KokoroError("Request to Kokoro failed for an unknown reason")
 
 
-def _coerce_voice_list(payload: object) -> List[str]:
-    voices: List[str] = []
+def _coerce_voice_list(payload: object) -> list[str]:
+    voices: list[str] = []
     if isinstance(payload, dict):
         raw = payload.get("voices")
         if isinstance(raw, list):
@@ -251,6 +256,24 @@ def _coerce_voice_list(payload: object) -> List[str]:
                         voices.append(value.strip())
                         break
     return sorted({voice for voice in voices if voice})
+
+
+def _repair_streaming_wav_header(body: bytes) -> bytes:
+    """Replace Kokoro's streaming WAV size sentinels with actual sizes."""
+    if len(body) < 12 or body[:4] != b"RIFF" or body[8:12] != b"WAVE":
+        return body
+    repaired = bytearray(body)
+    if struct.unpack_from("<I", repaired, 4)[0] == 0xFFFFFFFF:
+        struct.pack_into("<I", repaired, 4, min(len(body) - 8, 0xFFFFFFFF))
+    offset = 12
+    while offset + 8 <= len(repaired):
+        chunk_id = bytes(repaired[offset : offset + 4])
+        chunk_size = struct.unpack_from("<I", repaired, offset + 4)[0]
+        if chunk_id == b"data" and chunk_size == 0xFFFFFFFF:
+            struct.pack_into("<I", repaired, offset + 4, min(len(body) - offset - 8, 0xFFFFFFFF))
+            break
+        offset += 8 + chunk_size + (chunk_size & 1)
+    return bytes(repaired)
 
 
 def _response_detail(response: requests.Response) -> str:
