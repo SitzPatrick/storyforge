@@ -360,9 +360,11 @@ def test_polished_workspace_routes_render_and_dashboard_filters(web_settings: We
     assert "VOICE PLAN" in dashboard.text
     assert "Search projects" in dashboard.text
     assert "Delete" in dashboard.text
+    assert "Analyze EPUB" in dashboard.text
 
     project = client.get("/projects/sample-book")
     assert project.status_code == 200
+    assert "Analyze EPUB" in project.text
     assert "Characters" in project.text
     assert "Downloads" in project.text
     assert "Build status" in project.text
