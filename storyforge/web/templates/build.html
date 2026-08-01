@@ -13,7 +13,12 @@
     <p>Finished: <span id="job-finished">{{ status.finished_at or '—' }}</span></p>
   </div>
   <div class="actions stack">
-    <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Start build</button></form>
+    <form action="/projects/{{ project.project_slug }}/analyze" method="post"><button class="button" type="submit">1. Analyze Book</button></form>
+    <form action="/projects/{{ project.project_slug }}/normalize" method="post"><button class="button" type="submit">2. Normalize Analysis</button></form>
+    <form action="/projects/{{ project.project_slug }}/plan" method="post"><button class="button" type="submit">3. Generate Voice Plan</button></form>
+    <a class="button" href="/projects/{{ project.project_slug }}/voice-plan">4. Review/Edit Voice Plan</a>
+    <form action="/projects/{{ project.project_slug }}/manifest" method="post"><button class="button" type="submit">5. Generate Synthesis Manifest</button></form>
+    <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">6. Build Audiobook</button></form>
     <form action="/projects/{{ project.project_slug }}/resume" method="post"><button class="button" type="submit">Resume</button></form>
     <form action="/projects/{{ project.project_slug }}/cancel" method="post"><button class="button danger" type="submit">Cancel</button></form>
     <a class="button" href="/projects/{{ project.project_slug }}">Project</a>

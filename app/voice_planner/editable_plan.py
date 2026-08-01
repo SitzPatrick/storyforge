@@ -398,9 +398,11 @@ def _coerce_editable_plan(data: Mapping[str, Any], *, generated_plan: VoicePlan 
     narrator_assignment = gen.narrator.assignment
     if narrator_assignment is None:
         raise EditableVoicePlanError("generated narrator assignment is missing")
-    narrator = _coerce_editable_assignment(payload.get("editable", {}).get("narrator") if isinstance(payload.get("editable"), Mapping) else None, "narrator", None, narrator_assignment, gen.narrator.rationale, registry=registry)
+    editable_section = payload.get("editable")
+    if not isinstance(editable_section, Mapping):
+        editable_section = payload
+    narrator = _coerce_editable_assignment(editable_section.get("narrator"), "narrator", None, narrator_assignment, gen.narrator.rationale, registry=registry)
     characters: list[EditableAssignment] = []
-    editable_section = payload.get("editable", {}) if isinstance(payload.get("editable"), Mapping) else {}
     character_edits = editable_section.get("characters", []) if isinstance(editable_section, Mapping) else []
     edits_by_id = {}
     for entry in character_edits:
@@ -1030,8 +1032,13 @@ def _registry_voice_record(registry: Mapping[str, Any] | None, provider: str, pr
         return {"provider": provider, "provider_voice_id": provider_voice_id, "availability": "available", "voice_id": f"{provider}.{provider_voice_id}"}
     voices = registry.get("voices", []) if isinstance(registry, Mapping) else []
     for voice in voices:
-        if isinstance(voice, Mapping) and voice.get("provider") == provider and voice.get("provider_voice_id") == provider_voice_id:
-            return voice
+        if isinstance(voice, Mapping):
+            voice_provider = voice.get("provider")
+            voice_voice_id = voice.get("provider_voice_id")
+            if voice_provider == provider and voice_voice_id == provider_voice_id:
+                return voice
+        elif getattr(voice, "provider", None) == provider and getattr(voice, "provider_voice_id", None) == provider_voice_id:
+            return dataclass_to_dict(voice)
     return None
 
 

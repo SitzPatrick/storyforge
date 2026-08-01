@@ -30,7 +30,9 @@ class FFmpegPackagingBackend(PackagingBackend):
             return
         if not self.ffmpeg_path:
             raise RuntimeError("ffmpeg executable not available")
-        result = subprocess.run([self.ffmpeg_path, "-version"], check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            [self.ffmpeg_path, "-version"], check=True, capture_output=True, text=True
+        )
         self._version_line = result.stdout.splitlines()[0] if result.stdout else "ffmpeg unknown"
         if " version " in self._version_line:
             self.backend_version = self._version_line.split(" version ", 1)[1].split()[0]
@@ -42,9 +44,16 @@ class FFmpegPackagingBackend(PackagingBackend):
         if not self.is_available():
             raise RuntimeError("ffmpeg/ffprobe are not available")
         self._ensure_version()
+        request.temp_output_path.parent.mkdir(parents=True, exist_ok=True)
         concat_file = request.temp_output_path.with_suffix(".concat.txt")
         metadata_file = request.temp_output_path.with_suffix(".ffmetadata")
-        concat_file.write_text("".join(f"file '{chapter.mastered_audio_path.as_posix()}'\n" for chapter in request.chapter_inputs), encoding="utf-8")
+        concat_file.write_text(
+            "".join(
+                f"file '{chapter.mastered_audio_path.as_posix()}'\n"
+                for chapter in request.chapter_inputs
+            ),
+            encoding="utf-8",
+        )
         metadata_file.write_text(_build_ffmetadata(request), encoding="utf-8")
         cmd = [
             self.ffmpeg_path,
@@ -113,48 +122,65 @@ class FFmpegPackagingBackend(PackagingBackend):
         if not self.ffprobe_path:
             raise RuntimeError("ffprobe executable not available")
         if path is None:
-            self._ensure_version(); return {
+            self._ensure_version()
+            return {
                 "backend_name": self.backend_name,
                 "backend_version": self.backend_version,
                 "encoder_name": self.encoder_name,
                 "encoder_version": self.encoder_version,
                 "ffmpeg_version_line": self._version_line or "ffmpeg unknown",
             }
-        result = subprocess.run([
-            self.ffprobe_path,
-            "-v",
-            "error",
-            "-print_format",
-            "json",
-            "-show_format",
-            "-show_streams",
-            "-show_chapters",
-            str(path),
-        ], check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            [
+                self.ffprobe_path,
+                "-v",
+                "error",
+                "-print_format",
+                "json",
+                "-show_format",
+                "-show_streams",
+                "-show_chapters",
+                str(path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         probe = json.loads(result.stdout)
         format_info = probe.get("format", {})
         streams = probe.get("streams", [])
-        audio_stream = next((stream for stream in streams if stream.get("codec_type") == "audio"), {})
+        audio_stream = next(
+            (stream for stream in streams if stream.get("codec_type") == "audio"), {}
+        )
         chapters = []
         for chapter in probe.get("chapters", []):
+            start_seconds = float(chapter.get("start_time", 0) or 0)
+            end_seconds = float(chapter.get("end_time", 0) or 0)
             chapters.append(
                 {
                     "chapter_id": chapter.get("tags", {}).get("chapter_id"),
                     "chapter_title": chapter.get("tags", {}).get("title"),
                     "chapter_order": int(chapter.get("tags", {}).get("chapter_order", 0) or 0),
                     "mastered_chapter_id": chapter.get("tags", {}).get("mastered_chapter_id"),
-                    "start_time": int(chapter.get("start_time", 0)),
-                    "end_time": int(chapter.get("end_time", 0)),
-                    "duration_ticks": int(chapter.get("end_time", 0)) - int(chapter.get("start_time", 0)),
+                    "start_time": int(round(start_seconds * 1_000_000)),
+                    "end_time": int(round(end_seconds * 1_000_000)),
+                    "duration_ticks": int(round((end_seconds - start_seconds) * 1_000_000)),
                     "timebase": 1_000_000,
                     "book_id": chapter.get("tags", {}).get("book_id"),
                 }
             )
+        output_container = str(format_info.get("format_name", "m4b"))
+        if path.suffix.lower() == ".m4b":
+            output_container = "m4b"
         return {
             "output_path": str(path),
-            "output_container": format_info.get("format_name", "m4b"),
+            "output_container": output_container,
             "audio_codec": audio_stream.get("codec_name", "aac"),
-            "audio_bitrate_kbps": int(float(audio_stream.get("bit_rate", 0)) / 1000) if audio_stream.get("bit_rate") else 0,
+            "audio_bitrate_kbps": (
+                int(float(audio_stream.get("bit_rate", 0)) / 1000)
+                if audio_stream.get("bit_rate")
+                else 0
+            ),
             "sample_rate_hz": int(audio_stream.get("sample_rate", 0) or 0),
             "channel_count": int(audio_stream.get("channels", 0) or 0),
             "duration_seconds": float(format_info.get("duration", 0.0) or 0.0),
@@ -181,16 +207,18 @@ def _build_ffmetadata(request: PackagingRequest) -> str:
             continue
         lines.append(f"{key}={str(value).replace(chr(10), ' ').replace(chr(13), ' ')}")
     for chapter in request.chapter_timeline:
-        lines.extend([
-            "[CHAPTER]",
-            f"TIMEBASE=1/{chapter.timebase}",
-            f"START={chapter.start_time}",
-            f"END={chapter.end_time}",
-            f"title={chapter.chapter_title or chapter.chapter_id}",
-            f"chapter_id={chapter.chapter_id}",
-            f"mastered_chapter_id={chapter.mastered_chapter_id}",
-            f"book_id={chapter.book_id}",
-        ])
+        lines.extend(
+            [
+                "[CHAPTER]",
+                f"TIMEBASE=1/{chapter.timebase}",
+                f"START={chapter.start_time}",
+                f"END={chapter.end_time}",
+                f"title={chapter.chapter_title or chapter.chapter_id}",
+                f"chapter_id={chapter.chapter_id}",
+                f"mastered_chapter_id={chapter.mastered_chapter_id}",
+                f"book_id={chapter.book_id}",
+            ]
+        )
     return "\n".join(lines) + "\n"
 
 

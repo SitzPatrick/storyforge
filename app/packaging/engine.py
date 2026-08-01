@@ -4,9 +4,10 @@ import hashlib
 import os
 import shutil
 import tempfile
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from .backends.base import PackagingBackend
 from .backends.fake import FakePackagingBackend
@@ -21,7 +22,7 @@ from .cache import (
     package_sidecar_matches,
     save_package_sidecar,
 )
-from .metadata import build_book_metadata_hash, normalize_book_metadata, normalize_metadata_mapping
+from .metadata import build_book_metadata_hash, normalize_book_metadata
 from .models import (
     BookMetadata,
     ChapterTimelineEntry,
@@ -40,14 +41,20 @@ from .models import (
 )
 from .serialization import canonical_json, canonicalize
 from .timeline import build_chapter_timeline
-from .validation import validate_backend_probe, validate_cover_art_input, validate_mastered_chapter_inputs
+from .validation import (
+    validate_backend_probe,
+    validate_cover_art_input,
+    validate_mastered_chapter_inputs,
+)
 
 
 class PackagingEngineError(RuntimeError):
     pass
 
 
-def _coerce_mastered_chapter_input(chapter: Mapping[str, Any] | MasteredChapterInput) -> MasteredChapterInput:
+def _coerce_mastered_chapter_input(
+    chapter: Mapping[str, Any] | MasteredChapterInput,
+) -> MasteredChapterInput:
     if isinstance(chapter, MasteredChapterInput):
         return chapter
     payload = dict(chapter)
@@ -179,11 +186,19 @@ def _cache_hit_result(
     report_path: Path,
     backend_result: PackagingBackendResult,
 ) -> PackagingResult:
-    validation_text = sidecar.validation_result.value if isinstance(sidecar.validation_result, PackagingValidationStatus) else str(sidecar.validation_result)
+    validation_text = (
+        sidecar.validation_result.value
+        if isinstance(sidecar.validation_result, PackagingValidationStatus)
+        else str(sidecar.validation_result)
+    )
     report = PackagingReport(
         book_id=sidecar.book_id,
         package_id=sidecar.audiobook_package_id,
-        completion_status=PackagingCompletionStatus.COMPLETE if validation_text == PackagingValidationStatus.PASSED.value else PackagingCompletionStatus.COMPLETE_WITH_WARNINGS,
+        completion_status=(
+            PackagingCompletionStatus.COMPLETE
+            if validation_text == PackagingValidationStatus.PASSED.value
+            else PackagingCompletionStatus.COMPLETE_WITH_WARNINGS
+        ),
         package_cache_hit=True,
         package_newly_created=False,
         chapters_expected=sidecar.chapter_count,
@@ -194,7 +209,11 @@ def _cache_hit_result(
         actual_duration_seconds=sidecar.total_duration_seconds,
         duration_delta_seconds=0.0,
         metadata_validation_status=PackagingValidationStatus.PASSED,
-        cover_art_status=PackagingValidationStatus.PASSED if sidecar.cover_art_embedded else PackagingValidationStatus.BLOCKED,
+        cover_art_status=(
+            PackagingValidationStatus.PASSED
+            if sidecar.cover_art_embedded
+            else PackagingValidationStatus.BLOCKED
+        ),
         backend_name=sidecar.backend_name,
         backend_version=sidecar.backend_version,
         encoder_name=sidecar.encoder_name,
@@ -231,7 +250,11 @@ def _cache_hit_result(
         file_size=sidecar.file_size,
         warnings=sidecar.warnings,
         errors=sidecar.errors,
-        status=PackagingCompletionStatus.COMPLETE if sidecar.validation_result == PackagingValidationStatus.PASSED else PackagingCompletionStatus.COMPLETE_WITH_WARNINGS,
+        status=(
+            PackagingCompletionStatus.COMPLETE
+            if sidecar.validation_result == PackagingValidationStatus.PASSED
+            else PackagingCompletionStatus.COMPLETE_WITH_WARNINGS
+        ),
         cache_hit=True,
         newly_created=False,
         backend_result=backend_result,
@@ -253,15 +276,29 @@ def package_audiobook(
     backend = backend or FakePackagingBackend()
     if not backend.is_available():
         book_id = "unknown-book"
-        package_id = build_audiobook_package_id(book_id=book_id, packaging_contract_version=config.packaging_contract_version, container_format=config.container_format)
-        output_path = canonical_package_path(package_root=config.package_root, book_id=book_id, package_id=package_id, container_format=config.container_format)
-        failure = PackagingFailure(PackagingFailureType.PACKAGING_BACKEND_UNAVAILABLE, f"packaging backend unavailable: {backend.backend_name}")
+        package_id = build_audiobook_package_id(
+            book_id=book_id,
+            packaging_contract_version=config.packaging_contract_version,
+            container_format=config.container_format,
+        )
+        output_path = canonical_package_path(
+            package_root=config.package_root,
+            book_id=book_id,
+            package_id=package_id,
+            container_format=config.container_format,
+        )
+        failure = PackagingFailure(
+            PackagingFailureType.PACKAGING_BACKEND_UNAVAILABLE,
+            f"packaging backend unavailable: {backend.backend_name}",
+        )
         return _build_failure_result(
             book_id=book_id,
             package_id=package_id,
             package_input_hash="",
             output_artifact_path=output_path,
-            output_artifact_relative_path=canonical_relative_package_path(book_id=book_id, package_id=package_id, container_format=config.container_format),
+            output_artifact_relative_path=canonical_relative_package_path(
+                book_id=book_id, package_id=package_id, container_format=config.container_format
+            ),
             sidecar_path=output_path.with_name(PACKAGE_SIDECAR_FILENAME),
             report_path=output_path.with_name(PACKAGE_REPORT_FILENAME),
             container_format=config.container_format,
@@ -279,21 +316,40 @@ def package_audiobook(
             status=PackagingCompletionStatus.BLOCKED,
         )
     normalized_metadata = normalize_book_metadata(_coerce_book_metadata(metadata))
-    normalized_cover_art, cover_warnings, cover_failure = validate_cover_art_input(_coerce_cover_art(cover_art), config)
+    normalized_cover_art, cover_warnings, cover_failure = validate_cover_art_input(
+        _coerce_cover_art(cover_art), config
+    )
     mastered_inputs = tuple(_coerce_mastered_chapter_input(chapter) for chapter in chapters)
-    validated_chapters, chapter_warnings, chapter_failures = validate_mastered_chapter_inputs(mastered_inputs, config)
+    validated_chapters, chapter_warnings, chapter_failures = validate_mastered_chapter_inputs(
+        mastered_inputs, config
+    )
 
-    book_id = validated_chapters[0].book_id if validated_chapters else (mastered_inputs[0].book_id if mastered_inputs else "unknown-book")
+    book_id = (
+        validated_chapters[0].book_id
+        if validated_chapters
+        else (mastered_inputs[0].book_id if mastered_inputs else "unknown-book")
+    )
     if chapter_failures:
         failure = chapter_failures[0]
-        package_id = build_audiobook_package_id(book_id=book_id, packaging_contract_version=config.packaging_contract_version, container_format=config.container_format)
-        output_path = canonical_package_path(package_root=config.package_root, book_id=book_id, package_id=package_id, container_format=config.container_format)
+        package_id = build_audiobook_package_id(
+            book_id=book_id,
+            packaging_contract_version=config.packaging_contract_version,
+            container_format=config.container_format,
+        )
+        output_path = canonical_package_path(
+            package_root=config.package_root,
+            book_id=book_id,
+            package_id=package_id,
+            container_format=config.container_format,
+        )
         return _build_failure_result(
             book_id=book_id,
             package_id=package_id,
             package_input_hash="",
             output_artifact_path=output_path,
-            output_artifact_relative_path=canonical_relative_package_path(book_id=book_id, package_id=package_id, container_format=config.container_format),
+            output_artifact_relative_path=canonical_relative_package_path(
+                book_id=book_id, package_id=package_id, container_format=config.container_format
+            ),
             sidecar_path=output_path.with_name(PACKAGE_SIDECAR_FILENAME),
             report_path=output_path.with_name(PACKAGE_REPORT_FILENAME),
             container_format=config.container_format,
@@ -311,14 +367,25 @@ def package_audiobook(
             status=PackagingCompletionStatus.BLOCKED,
         )
     if cover_failure is not None:
-        package_id = build_audiobook_package_id(book_id=book_id, packaging_contract_version=config.packaging_contract_version, container_format=config.container_format)
-        output_path = canonical_package_path(package_root=config.package_root, book_id=book_id, package_id=package_id, container_format=config.container_format)
+        package_id = build_audiobook_package_id(
+            book_id=book_id,
+            packaging_contract_version=config.packaging_contract_version,
+            container_format=config.container_format,
+        )
+        output_path = canonical_package_path(
+            package_root=config.package_root,
+            book_id=book_id,
+            package_id=package_id,
+            container_format=config.container_format,
+        )
         return _build_failure_result(
             book_id=book_id,
             package_id=package_id,
             package_input_hash="",
             output_artifact_path=output_path,
-            output_artifact_relative_path=canonical_relative_package_path(book_id=book_id, package_id=package_id, container_format=config.container_format),
+            output_artifact_relative_path=canonical_relative_package_path(
+                book_id=book_id, package_id=package_id, container_format=config.container_format
+            ),
             sidecar_path=output_path.with_name(PACKAGE_SIDECAR_FILENAME),
             report_path=output_path.with_name(PACKAGE_REPORT_FILENAME),
             container_format=config.container_format,
@@ -336,7 +403,12 @@ def package_audiobook(
             status=PackagingCompletionStatus.BLOCKED,
         )
 
-    ordered_chapters = tuple(sorted(validated_chapters, key=lambda item: (item.chapter_order, item.chapter_id, item.mastered_chapter_id)))
+    ordered_chapters = tuple(
+        sorted(
+            validated_chapters,
+            key=lambda item: (item.chapter_order, item.chapter_id, item.mastered_chapter_id),
+        )
+    )
     timeline = tuple(
         build_chapter_timeline(
             [
@@ -356,17 +428,32 @@ def package_audiobook(
     )
 
     normalized_metadata_hash = build_book_metadata_hash(normalized_metadata)
-    package_id = build_audiobook_package_id(book_id=book_id, packaging_contract_version=config.packaging_contract_version, container_format=config.container_format)
-    output_path = canonical_package_path(package_root=config.package_root, book_id=book_id, package_id=package_id, container_format=config.container_format)
-    temp_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
-    if not config.package_root.is_absolute() or any(part == ".." for part in config.package_root.parts):
-        failure = PackagingFailure(PackagingFailureType.UNSAFE_OUTPUT_PATH, f"unsafe package root: {config.package_root}")
+    package_id = build_audiobook_package_id(
+        book_id=book_id,
+        packaging_contract_version=config.packaging_contract_version,
+        container_format=config.container_format,
+    )
+    output_path = canonical_package_path(
+        package_root=config.package_root,
+        book_id=book_id,
+        package_id=package_id,
+        container_format=config.container_format,
+    )
+    temp_output_path = output_path.with_name(f"{output_path.stem}.tmp{output_path.suffix}")
+    if not config.package_root.is_absolute() or any(
+        part == ".." for part in config.package_root.parts
+    ):
+        failure = PackagingFailure(
+            PackagingFailureType.UNSAFE_OUTPUT_PATH, f"unsafe package root: {config.package_root}"
+        )
         return _build_failure_result(
             book_id=book_id,
             package_id=package_id,
             package_input_hash="",
             output_artifact_path=output_path,
-            output_artifact_relative_path=canonical_relative_package_path(book_id=book_id, package_id=package_id, container_format=config.container_format),
+            output_artifact_relative_path=canonical_relative_package_path(
+                book_id=book_id, package_id=package_id, container_format=config.container_format
+            ),
             sidecar_path=output_path.with_name(PACKAGE_SIDECAR_FILENAME),
             report_path=output_path.with_name(PACKAGE_REPORT_FILENAME),
             container_format=config.container_format,
@@ -385,7 +472,9 @@ def package_audiobook(
         )
     sidecar_path = output_path.with_name(PACKAGE_SIDECAR_FILENAME)
     report_path = output_path.with_name(PACKAGE_REPORT_FILENAME)
-    output_relative_path = canonical_relative_package_path(book_id=book_id, package_id=package_id, container_format=config.container_format)
+    output_relative_path = canonical_relative_package_path(
+        book_id=book_id, package_id=package_id, container_format=config.container_format
+    )
 
     request = PackagingRequest(
         book_id=book_id,
@@ -408,7 +497,9 @@ def package_audiobook(
         backend_version=backend.backend_version,
         encoder_name=backend.encoder_name,
         encoder_version=backend.encoder_version,
-        cover_art_hash=None if normalized_cover_art is None else normalized_cover_art.source_content_hash,
+        cover_art_hash=(
+            None if normalized_cover_art is None else normalized_cover_art.source_content_hash
+        ),
     )
     request = replace(request, package_input_hash=package_input_hash)
 
@@ -423,8 +514,12 @@ def package_audiobook(
         expected_book_id=book_id,
         expected_output_relative_path=output_relative_path,
         expected_metadata_hash=normalized_metadata_hash,
-        expected_cover_art_hash=None if normalized_cover_art is None else normalized_cover_art.source_content_hash,
-        expected_cover_art_embedded=bool(normalized_cover_art and normalized_cover_art.expected_embedded),
+        expected_cover_art_hash=(
+            None if normalized_cover_art is None else normalized_cover_art.source_content_hash
+        ),
+        expected_cover_art_embedded=bool(
+            normalized_cover_art and normalized_cover_art.expected_embedded
+        ),
         expected_chapter_timeline=timeline,
     )
     if cache_hit is not None:
@@ -441,7 +536,9 @@ def package_audiobook(
             config=config,
             expected_chapter_count=len(ordered_chapters),
             expected_duration_seconds=sum(chapter.duration_seconds for chapter in ordered_chapters),
-            expected_cover_art_enabled=bool(normalized_cover_art and normalized_cover_art.expected_embedded),
+            expected_cover_art_enabled=bool(
+                normalized_cover_art and normalized_cover_art.expected_embedded
+            ),
         )
         if validation_failure is not None:
             raise validation_failure
@@ -475,15 +572,27 @@ def package_audiobook(
             total_duration_seconds=backend_result.duration_seconds,
             chapter_count=len(ordered_chapters),
             ordered_chapter_ids=tuple(chapter.chapter_id for chapter in ordered_chapters),
-            ordered_mastered_chapter_ids=tuple(chapter.mastered_chapter_id for chapter in ordered_chapters),
-            ordered_mastered_audio_content_hashes=tuple(chapter.mastered_audio_content_hash for chapter in ordered_chapters),
+            ordered_mastered_chapter_ids=tuple(
+                chapter.mastered_chapter_id for chapter in ordered_chapters
+            ),
+            ordered_mastered_audio_content_hashes=tuple(
+                chapter.mastered_audio_content_hash for chapter in ordered_chapters
+            ),
             chapter_timeline=timeline,
             canonical_book_metadata_hash=normalized_metadata_hash,
-            cover_art_hash=None if normalized_cover_art is None else normalized_cover_art.source_content_hash,
-            cover_art_embedded=bool(normalized_cover_art and normalized_cover_art.expected_embedded),
+            cover_art_hash=(
+                None if normalized_cover_art is None else normalized_cover_art.source_content_hash
+            ),
+            cover_art_embedded=bool(
+                normalized_cover_art and normalized_cover_art.expected_embedded
+            ),
             output_artifact_content_hash=_hash_path(output_path),
             file_size=output_path.stat().st_size,
-            validation_result=PackagingValidationStatus.PASSED if not backend_result.warnings else PackagingValidationStatus.PASSED_WITH_WARNINGS,
+            validation_result=(
+                PackagingValidationStatus.PASSED
+                if not backend_result.warnings
+                else PackagingValidationStatus.PASSED_WITH_WARNINGS
+            ),
             warnings=tuple(chapter_warnings) + cover_warnings + backend_result.warnings,
             errors=backend_result.errors,
         )
@@ -491,18 +600,32 @@ def package_audiobook(
         report = PackagingReport(
             book_id=book_id,
             package_id=package_id,
-            completion_status=PackagingCompletionStatus.COMPLETE if sidecar.validation_result == PackagingValidationStatus.PASSED else PackagingCompletionStatus.COMPLETE_WITH_WARNINGS,
+            completion_status=(
+                PackagingCompletionStatus.COMPLETE
+                if sidecar.validation_result == PackagingValidationStatus.PASSED
+                else PackagingCompletionStatus.COMPLETE_WITH_WARNINGS
+            ),
             package_cache_hit=False,
             package_newly_created=True,
             chapters_expected=len(ordered_chapters),
             chapters_packaged=len(ordered_chapters),
-            optional_chapters_omitted=tuple(chapter.chapter_id for chapter in mastered_inputs if not chapter.required and chapter.chapter_id not in {item.chapter_id for item in ordered_chapters}),
+            optional_chapters_omitted=tuple(
+                chapter.chapter_id
+                for chapter in mastered_inputs
+                if not chapter.required
+                and chapter.chapter_id not in {item.chapter_id for item in ordered_chapters}
+            ),
             blocked_chapters=tuple(),
             expected_duration_seconds=sum(chapter.duration_seconds for chapter in ordered_chapters),
             actual_duration_seconds=backend_result.duration_seconds,
-            duration_delta_seconds=backend_result.duration_seconds - sum(chapter.duration_seconds for chapter in ordered_chapters),
+            duration_delta_seconds=backend_result.duration_seconds
+            - sum(chapter.duration_seconds for chapter in ordered_chapters),
             metadata_validation_status=PackagingValidationStatus.PASSED,
-            cover_art_status=PackagingValidationStatus.PASSED if normalized_cover_art and normalized_cover_art.expected_embedded else PackagingValidationStatus.BLOCKED,
+            cover_art_status=(
+                PackagingValidationStatus.PASSED
+                if normalized_cover_art and normalized_cover_art.expected_embedded
+                else PackagingValidationStatus.BLOCKED
+            ),
             backend_name=backend_result.backend_name,
             backend_version=backend_result.backend_version,
             encoder_name=backend_result.encoder_name,
@@ -579,7 +702,11 @@ def package_audiobook(
             warnings=tuple(chapter_warnings) + cover_warnings,
             errors=(failure.message,),
             failure=failure,
-            status=PackagingCompletionStatus.FAILED if not failure.package_blocking else PackagingCompletionStatus.BLOCKED,
+            status=(
+                PackagingCompletionStatus.FAILED
+                if not failure.package_blocking
+                else PackagingCompletionStatus.BLOCKED
+            ),
         )
     except Exception as exc:  # noqa: BLE001
         _restore_backup(output_path, backup_output)
@@ -688,7 +815,9 @@ def _maybe_cache_hit(
         channel_count=sidecar.channel_count,
         duration_seconds=sidecar.total_duration_seconds,
         chapter_count=sidecar.chapter_count,
-        chapter_probe_data=tuple(canonicalize(item) for item in probe.get("chapter_probe_data", [])),
+        chapter_probe_data=tuple(
+            canonicalize(item) for item in probe.get("chapter_probe_data", [])
+        ),
         metadata_probe_data=dict(probe.get("metadata_probe_data", {})),
         cover_art_probe_state=probe.get("cover_art_probe_state"),
         backend_name=sidecar.backend_name,
@@ -702,4 +831,9 @@ def _maybe_cache_hit(
         errors=sidecar.errors,
         probe_data=probe,
     )
-    return _cache_hit_result(sidecar=sidecar, output_path=output_path, report_path=report_path, backend_result=backend_result)
+    return _cache_hit_result(
+        sidecar=sidecar,
+        output_path=output_path,
+        report_path=report_path,
+        backend_result=backend_result,
+    )

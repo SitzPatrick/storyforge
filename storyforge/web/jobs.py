@@ -211,7 +211,7 @@ class JobManager:
             status.updated_at = now_iso()
             status.build_log_tail = self.projects.read_build_log_tail(project_slug)
             status.message = line[:500]
-            if action == "build":
+            if action in {"build", "manifest"}:
                 if match := re.search(r"^Chapters total:\s*(\d+)", line):
                     status.total_chapters = int(match.group(1))
                     status.stage = "building"
@@ -231,6 +231,8 @@ class JobManager:
                     or line.startswith("Provider:")
                 ):
                     status.stage = "analyzing"
+            elif action in {"normalize", "plan"}:
+                status.stage = action
             self.projects.save_status(status)
 
     def _worker_env(self) -> dict[str, str]:

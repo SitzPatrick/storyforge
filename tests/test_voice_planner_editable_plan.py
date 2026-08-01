@@ -22,6 +22,7 @@ from app.voice_planner import (
     set_assignment_lock,
     validate_editable_voice_plan,
 )
+from app.voice_planner.registry import load_voice_registry
 
 
 def _assignment(provider: str, provider_voice_id: str, *, source: str = "global optimum", continuity_status: str = "new-assignment", locked: bool = False, notes: str | None = None) -> VoiceAssignment:
@@ -407,3 +408,87 @@ def test_user_editable_hash_changes_only_when_the_user_overlay_changes():
     assert refreshed_lead.effective_assignment is not None
     assert refreshed_lead.effective_assignment.provider_voice_id == "v1"
     assert len(refreshed.editable_plan.edit_history) > len(manual.edit_history)
+
+
+def test_sequential_manual_character_overrides_preserve_both_assignments():
+    registry = _registry()
+    plan = _wrap(_voice_plan())
+    plan = apply_manual_override(
+        plan,
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="lead",
+            requested_provider="gamma",
+            requested_provider_voice_id="v3",
+            locked=True,
+            manual_override=True,
+        ),
+        registry=registry,
+    )
+    plan = apply_manual_override(
+        plan,
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="support",
+            requested_provider="alpha",
+            requested_provider_voice_id="v1",
+            locked=True,
+            manual_override=True,
+        ),
+        registry=registry,
+    )
+    assignments = {c.canonical_character_id: c for c in plan.characters}
+    assert assignments["lead"].effective_assignment.provider_voice_id == "v3"
+    assert assignments["support"].effective_assignment.provider_voice_id == "v1"
+
+
+def test_manual_assignments_survive_serialization_round_trip():
+    registry = _registry()
+    plan = _wrap(_voice_plan())
+    plan = apply_manual_override(
+        plan,
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="lead",
+            requested_provider="gamma",
+            requested_provider_voice_id="v3",
+            locked=True,
+            manual_override=True,
+        ),
+        registry=registry,
+    )
+    plan = apply_manual_override(
+        plan,
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="support",
+            requested_provider="alpha",
+            requested_provider_voice_id="v1",
+            locked=True,
+            manual_override=True,
+        ),
+        registry=registry,
+    )
+    reloaded = load_editable_voice_plan(json.loads(serialize_editable_voice_plan(plan)), registry=registry)
+    assignments = {c.canonical_character_id: c for c in reloaded.characters}
+    assert assignments["lead"].effective_assignment.provider_voice_id == "v3"
+    assert assignments["support"].effective_assignment.provider_voice_id == "v1"
+
+
+def test_manual_assignment_accepts_registry_voice_capability_dataclasses(tmp_path: Path):
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(json.dumps(_registry()), encoding="utf-8")
+    registry = load_voice_registry(registry_path)
+    plan = apply_manual_override(
+        _wrap(_voice_plan()),
+        ManualOverride(
+            target_kind="character",
+            canonical_character_id="lead",
+            requested_provider="gamma",
+            requested_provider_voice_id="v3",
+            locked=True,
+            manual_override=True,
+        ),
+        registry=registry,
+    )
+    assert plan.characters[0].effective_assignment.provider_voice_id == "v3"

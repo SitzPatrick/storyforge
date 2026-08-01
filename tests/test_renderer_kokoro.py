@@ -4,7 +4,23 @@ from pathlib import Path
 
 import pytest
 
+from app.kokoro_client import _repair_streaming_wav_header
 from app.renderer.providers.kokoro import KokoroProviderAdapter
+
+
+def test_kokoro_streaming_wav_header_is_repaired():
+    body = (
+        b"RIFF"
+        + (0xFFFFFFFF).to_bytes(4, "little")
+        + b"WAVEfmt "
+        + b"\x10\x00\x00\x00\x01\x00\x01\x00\xc0]\x00\x00\x80\xbb\x00\x00\x02\x00\x10\x00"
+        + b"data"
+        + (0xFFFFFFFF).to_bytes(4, "little")
+        + b"\x00\x00\x01\x00"
+    )
+    repaired = _repair_streaming_wav_header(body)
+    assert int.from_bytes(repaired[4:8], "little") == len(body) - 8
+    assert int.from_bytes(repaired[40:44], "little") == 4
 
 
 def test_kokoro_adapter_lazily_loads_client_and_reuses_session(tmp_path: Path):
@@ -59,11 +75,15 @@ def test_kokoro_adapter_rejects_unsupported_voice_before_render(tmp_path: Path):
     )
 
     session = adapter.open_session()
-    with pytest.raises(Exception):
-        session.render_text("hello", tmp_path / "out.wav", voice_id="not-a-voice", render_unit_id="ru_1")
+    with pytest.raises(Exception):  # noqa: B017
+        session.render_text(
+            "hello", tmp_path / "out.wav", voice_id="not-a-voice", render_unit_id="ru_1"
+        )
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(not Path("/tmp").exists(), reason="placeholder skip; real Kokoro endpoint not configured")
+@pytest.mark.skipif(
+    not Path("/tmp").exists(), reason="placeholder skip; real Kokoro endpoint not configured"
+)
 def test_kokoro_integration_placeholder_skips_cleanly():
     pytest.skip("real Kokoro integration not configured in this environment")

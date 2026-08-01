@@ -23,6 +23,27 @@ class ProjectRecord:
     analysis_state: str = "not-run"
     selected_voice: str = ""
     narrator: str = ""
+    # Artifact pointers are deliberately optional: older project.json files do not
+    # contain them and are migrated on read without rewriting user data.
+    analysis_path: str = ""
+    analysis_status: str = "not-run"
+    normalized_path: str = ""
+    normalized_analysis_path: str = ""
+    normalization_status: str = "not-run"
+    character_profiles_path: str = ""
+    voice_plan_path: str = ""
+    voice_plan_status: str = "not-run"
+    voice_assignment_report_path: str = ""
+    manifest_path: str = ""
+    synthesis_manifest_path: str = ""
+    synthesis_manifest_status: str = "not-run"
+    build_mode: str = "character-aware"
+    last_pipeline_build_id: str = ""
+    pipeline_contract_version: int = 1
+    series_id: str = ""
+    cover_art_path: str = ""
+    artifact_map: dict[str, str] = field(default_factory=dict)
+    orchestrator_version: str = "storyforge-pipeline"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ProjectRecord:
@@ -39,6 +60,66 @@ class ProjectRecord:
             analysis_state=str(data.get("analysis_state", "not-run")),
             selected_voice=str(data.get("selected_voice", "")),
             narrator=str(data.get("narrator", "")),
+            analysis_path=str(data.get("analysis_path", "")),
+            analysis_status=str(
+                data.get("analysis_status", "completed" if data.get("analysis_path") else "not-run")
+            ),
+            normalized_path=str(
+                data.get("normalized_path", data.get("normalized_analysis_path", ""))
+            ),
+            normalized_analysis_path=str(
+                data.get("normalized_analysis_path", data.get("normalized_path", ""))
+            ),
+            normalization_status=str(
+                data.get(
+                    "normalization_status",
+                    (
+                        "completed"
+                        if data.get("normalized_path") or data.get("normalized_analysis_path")
+                        else "not-run"
+                    ),
+                )
+            ),
+            character_profiles_path=str(data.get("character_profiles_path", "")),
+            voice_plan_path=str(data.get("voice_plan_path", "")),
+            voice_plan_status=str(
+                data.get(
+                    "voice_plan_status", "completed" if data.get("voice_plan_path") else "not-run"
+                )
+            ),
+            voice_assignment_report_path=str(data.get("voice_assignment_report_path", "")),
+            manifest_path=str(data.get("manifest_path", data.get("synthesis_manifest_path", ""))),
+            synthesis_manifest_path=str(
+                data.get("synthesis_manifest_path", data.get("manifest_path", ""))
+            ),
+            synthesis_manifest_status=str(
+                data.get(
+                    "synthesis_manifest_status",
+                    (
+                        "completed"
+                        if data.get("manifest_path") or data.get("synthesis_manifest_path")
+                        else "not-run"
+                    ),
+                )
+            ),
+            build_mode=str(
+                data.get(
+                    "build_mode",
+                    (
+                        "legacy/single-voice"
+                        if data.get("last_build_id") and not data.get("voice_plan_path")
+                        else "character-aware"
+                    ),
+                )
+            ),
+            last_pipeline_build_id=str(
+                data.get("last_pipeline_build_id", data.get("last_build_id", ""))
+            ),
+            pipeline_contract_version=int(data.get("pipeline_contract_version", 1)),
+            series_id=str(data.get("series_id", "")),
+            cover_art_path=str(data.get("cover_art_path", "")),
+            artifact_map={str(k): str(v) for k, v in (data.get("artifact_map") or {}).items()},
+            orchestrator_version=str(data.get("orchestrator_version", "storyforge-pipeline")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,6 +136,25 @@ class ProjectRecord:
             "analysis_state": self.analysis_state,
             "selected_voice": self.selected_voice,
             "narrator": self.narrator,
+            "analysis_path": self.analysis_path,
+            "analysis_status": self.analysis_status,
+            "normalized_path": self.normalized_path,
+            "normalized_analysis_path": self.normalized_analysis_path,
+            "normalization_status": self.normalization_status,
+            "character_profiles_path": self.character_profiles_path,
+            "voice_plan_path": self.voice_plan_path,
+            "voice_plan_status": self.voice_plan_status,
+            "voice_assignment_report_path": self.voice_assignment_report_path,
+            "manifest_path": self.manifest_path,
+            "synthesis_manifest_path": self.synthesis_manifest_path,
+            "synthesis_manifest_status": self.synthesis_manifest_status,
+            "build_mode": self.build_mode,
+            "last_pipeline_build_id": self.last_pipeline_build_id,
+            "pipeline_contract_version": self.pipeline_contract_version,
+            "series_id": self.series_id,
+            "cover_art_path": self.cover_art_path,
+            "artifact_map": dict(self.artifact_map),
+            "orchestrator_version": self.orchestrator_version,
         }
 
 

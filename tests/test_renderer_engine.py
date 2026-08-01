@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Existing fixture literals intentionally mirror long production payloads.
+# ruff: noqa: E501, I001
+
 import copy
 import json
 import wave
@@ -8,19 +11,37 @@ from pathlib import Path
 
 import pytest
 
-from app.renderer import RenderContext, RenderFailure, RenderFailureType, RenderSettings, SegmentRenderer
-from app.renderer.providers.base import ProviderCapabilities, ProviderRenderRequest, ProviderRenderResult, ProviderRenderSession, TTSProviderAdapter
+from app.renderer import (
+    RenderContext,
+    RenderFailure,
+    RenderFailureType,
+    SegmentRenderer,
+)
 from app.renderer import engine as renderer_engine
+from app.renderer.providers.base import (
+    ProviderCapabilities,
+    ProviderRenderRequest,
+    ProviderRenderResult,
+    ProviderRenderSession,
+    TTSProviderAdapter,
+)
 from app.voice_planner import build_synthesis_manifest
 
 
-def _make_wav(path: Path, *, duration: float = 0.1, sample_rate: int = 24000, channels: int = 1, sample_width: int = 2) -> Path:
+def _make_wav(
+    path: Path,
+    *,
+    duration: float = 0.1,
+    sample_rate: int = 24000,
+    channels: int = 1,
+    sample_width: int = 2,
+) -> Path:
     nframes = max(1, int(duration * sample_rate))
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(channels)
         handle.setsampwidth(sample_width)
         handle.setframerate(sample_rate)
-        handle.writeframes(b"\x00" * nframes * channels * sample_width)
+        handle.writeframes(b"\x00\x10" * (nframes * channels * sample_width // 2))
     return path
 
 
@@ -29,15 +50,62 @@ def _registry() -> dict[str, object]:
         "schema_version": 1,
         "registry_version": "test",
         "voices": [
-            {"schema_version": 1, "voice_id": "alpha.v1", "provider": "alpha", "provider_voice_id": "v1", "display_name": "Alpha V1", "availability": "available", "quality_score": 0.95, "base_priority": 100, "archetype_tags": [], "style_tags": [], "supported_languages": ["en-US"], "supported_controls": ["rate"], "similarity_cluster": None},
-            {"schema_version": 1, "voice_id": "alpha.v2", "provider": "alpha", "provider_voice_id": "v2", "display_name": "Alpha V2", "availability": "available", "quality_score": 0.93, "base_priority": 95, "archetype_tags": [], "style_tags": [], "supported_languages": ["en-US"], "supported_controls": ["rate"], "similarity_cluster": None},
-            {"schema_version": 1, "voice_id": "beta.v2", "provider": "beta", "provider_voice_id": "v2", "display_name": "Beta V2", "availability": "available", "quality_score": 0.92, "base_priority": 90, "archetype_tags": [], "style_tags": [], "supported_languages": ["en-US"], "supported_controls": ["rate"], "similarity_cluster": None},
+            {
+                "schema_version": 1,
+                "voice_id": "alpha.v1",
+                "provider": "alpha",
+                "provider_voice_id": "v1",
+                "display_name": "Alpha V1",
+                "availability": "available",
+                "quality_score": 0.95,
+                "base_priority": 100,
+                "archetype_tags": [],
+                "style_tags": [],
+                "supported_languages": ["en-US"],
+                "supported_controls": ["rate"],
+                "similarity_cluster": None,
+            },
+            {
+                "schema_version": 1,
+                "voice_id": "alpha.v2",
+                "provider": "alpha",
+                "provider_voice_id": "v2",
+                "display_name": "Alpha V2",
+                "availability": "available",
+                "quality_score": 0.93,
+                "base_priority": 95,
+                "archetype_tags": [],
+                "style_tags": [],
+                "supported_languages": ["en-US"],
+                "supported_controls": ["rate"],
+                "similarity_cluster": None,
+            },
+            {
+                "schema_version": 1,
+                "voice_id": "beta.v2",
+                "provider": "beta",
+                "provider_voice_id": "v2",
+                "display_name": "Beta V2",
+                "availability": "available",
+                "quality_score": 0.92,
+                "base_priority": 90,
+                "archetype_tags": [],
+                "style_tags": [],
+                "supported_languages": ["en-US"],
+                "supported_controls": ["rate"],
+                "similarity_cluster": None,
+            },
         ],
     }
 
 
 def _plan(*, ada_voice: str = "v1", ben_voice: str = "v2"):
-    from app.voice_planner import EditableVoicePlan, VoiceAssignment, VoicePlan, CharacterPlan, NarratorPlan
+    from app.voice_planner import (
+        CharacterPlan,
+        NarratorPlan,
+        VoiceAssignment,
+        VoicePlan,
+    )
 
     return VoicePlan(
         schema_version=1,
@@ -99,7 +167,19 @@ def _plan(*, ada_voice: str = "v1", ben_voice: str = "v2"):
     )
 
 
-def _story(*, ada_text: str = '"We should go now," Ada said.', ben_text: str = '"Not yet," Ben whispered.', source_order_variant: bool = False, blocked: bool = False, omitted: bool = False, unsafe_key: bool = False, note_only: bool = False, ada_rate: float = 1.0, ada_pronunciation_notes: str = "Ada pronounced AY-dah", ada_performance_notes: str = "calm"):
+def _story(
+    *,
+    ada_text: str = '"We should go now," Ada said.',
+    ben_text: str = '"Not yet," Ben whispered.',
+    source_order_variant: bool = False,
+    blocked: bool = False,
+    omitted: bool = False,
+    unsafe_key: bool = False,
+    note_only: bool = False,
+    ada_rate: float = 1.0,
+    ada_pronunciation_notes: str = "Ada pronounced AY-dah",
+    ada_performance_notes: str = "calm",
+):
     segments = [
         {
             "segment_id": "narration-1",
@@ -110,7 +190,13 @@ def _story(*, ada_text: str = '"We should go now," Ada said.', ben_text: str = '
             "source_text": "The morning light filled the room.",
             "synthesis_text": "The morning light filled the room.",
             "source_text_hash": "n1",
-            "source_reference": {"chapter": 1, "paragraph_index": 1, "source_document_id": "book-9", "source_text_hash": "n1", "excerpt": "The morning light filled the room."},
+            "source_reference": {
+                "chapter": 1,
+                "paragraph_index": 1,
+                "source_document_id": "book-9",
+                "source_text_hash": "n1",
+                "excerpt": "The morning light filled the room.",
+            },
         },
         {
             "segment_id": "dialogue-ada",
@@ -123,7 +209,13 @@ def _story(*, ada_text: str = '"We should go now," Ada said.', ben_text: str = '
             "source_text": ada_text,
             "synthesis_text": ada_text,
             "source_text_hash": "d1",
-            "source_reference": {"chapter": 1, "paragraph_index": 2, "source_document_id": "book-9", "source_text_hash": "d1", "excerpt": ada_text},
+            "source_reference": {
+                "chapter": 1,
+                "paragraph_index": 2,
+                "source_document_id": "book-9",
+                "source_text_hash": "d1",
+                "excerpt": ada_text,
+            },
             "controls": {"rate": ada_rate},
             "pronunciation_notes": ada_pronunciation_notes,
             "performance_notes": ada_performance_notes,
@@ -137,7 +229,13 @@ def _story(*, ada_text: str = '"We should go now," Ada said.', ben_text: str = '
             "source_text": "Ben nodded in agreement.",
             "synthesis_text": "Ben nodded in agreement.",
             "source_text_hash": "n2",
-            "source_reference": {"chapter": 1, "paragraph_index": 3, "source_document_id": "book-9", "source_text_hash": "n2", "excerpt": "Ben nodded in agreement."},
+            "source_reference": {
+                "chapter": 1,
+                "paragraph_index": 3,
+                "source_document_id": "book-9",
+                "source_text_hash": "n2",
+                "excerpt": "Ben nodded in agreement.",
+            },
         },
         {
             "segment_id": "dialogue-ben",
@@ -150,7 +248,13 @@ def _story(*, ada_text: str = '"We should go now," Ada said.', ben_text: str = '
             "source_text": ben_text,
             "synthesis_text": "Not yet.",
             "source_text_hash": "d2",
-            "source_reference": {"chapter": 1, "paragraph_index": 4, "source_document_id": "book-9", "source_text_hash": "d2", "excerpt": ben_text},
+            "source_reference": {
+                "chapter": 1,
+                "paragraph_index": 4,
+                "source_document_id": "book-9",
+                "source_text_hash": "d2",
+                "excerpt": ben_text,
+            },
             "controls": {"rate": 1.0},
         },
     ]
@@ -176,60 +280,209 @@ def _story(*, ada_text: str = '"We should go now," Ada said.', ben_text: str = '
         "source_document_id": "book-9",
         "source_signature": {"sha256": "analysis-hash"},
         "characters": [
-            {"canonical_character_id": "ada", "canonical_name": "Ada", "aliases": ["Ad"], "source_aliases": ["Ad"]},
-            {"canonical_character_id": "ben", "canonical_name": "Ben", "aliases": [], "source_aliases": []},
+            {
+                "canonical_character_id": "ada",
+                "canonical_name": "Ada",
+                "aliases": ["Ad"],
+                "source_aliases": ["Ad"],
+            },
+            {
+                "canonical_character_id": "ben",
+                "canonical_name": "Ben",
+                "aliases": [],
+                "source_aliases": [],
+            },
         ],
         "scenes": [
-            {"scene_id": "scene-1", "chapter": 1, "scene_number": 1, "start_paragraph": 1, "end_paragraph": 2, "summary": "Ada speaks with Ben.", "source_document_id": "book-9", "source_text_hash": "scene-1"},
-            {"scene_id": "scene-2", "chapter": 1, "scene_number": 2, "start_paragraph": 3, "end_paragraph": 4, "summary": "Ben and Ada speak.", "source_document_id": "book-9", "source_text_hash": "scene-2"},
+            {
+                "scene_id": "scene-1",
+                "chapter": 1,
+                "scene_number": 1,
+                "start_paragraph": 1,
+                "end_paragraph": 2,
+                "summary": "Ada speaks with Ben.",
+                "source_document_id": "book-9",
+                "source_text_hash": "scene-1",
+            },
+            {
+                "scene_id": "scene-2",
+                "chapter": 1,
+                "scene_number": 2,
+                "start_paragraph": 3,
+                "end_paragraph": 4,
+                "summary": "Ben and Ada speak.",
+                "source_document_id": "book-9",
+                "source_text_hash": "scene-2",
+            },
         ],
         "dialogue": [
-            {"dialogue_id": "d1", "scene_id": "scene-1", "chapter": 1, "paragraph_index": 2, "speaker": "Ada", "quoted_text": "We should go now.", "source_document_id": "book-9", "source_text_hash": "d1", "source_reference": {"chapter": 1, "paragraph_index": 2, "source_document_id": "book-9", "source_text_hash": "d1", "excerpt": ada_text}},
-            {"dialogue_id": "d2", "scene_id": "scene-2", "chapter": 1, "paragraph_index": 4, "speaker": "Ben", "quoted_text": "Not yet.", "source_document_id": "book-9", "source_text_hash": "d2", "source_reference": {"chapter": 1, "paragraph_index": 4, "source_document_id": "book-9", "source_text_hash": "d2", "excerpt": ben_text}},
+            {
+                "dialogue_id": "d1",
+                "scene_id": "scene-1",
+                "chapter": 1,
+                "paragraph_index": 2,
+                "speaker": "Ada",
+                "quoted_text": "We should go now.",
+                "source_document_id": "book-9",
+                "source_text_hash": "d1",
+                "source_reference": {
+                    "chapter": 1,
+                    "paragraph_index": 2,
+                    "source_document_id": "book-9",
+                    "source_text_hash": "d1",
+                    "excerpt": ada_text,
+                },
+            },
+            {
+                "dialogue_id": "d2",
+                "scene_id": "scene-2",
+                "chapter": 1,
+                "paragraph_index": 4,
+                "speaker": "Ben",
+                "quoted_text": "Not yet.",
+                "source_document_id": "book-9",
+                "source_text_hash": "d2",
+                "source_reference": {
+                    "chapter": 1,
+                    "paragraph_index": 4,
+                    "source_document_id": "book-9",
+                    "source_text_hash": "d2",
+                    "excerpt": ben_text,
+                },
+            },
         ],
         "narration_paragraphs": [
-            {"chapter": 1, "paragraph_index": 1, "text": "The morning light filled the room.", "source_document_id": "book-9", "source_text_hash": "n1", "source_reference": {"chapter": 1, "paragraph_index": 1, "source_document_id": "book-9", "source_text_hash": "n1", "excerpt": "The morning light filled the room."}},
-            {"chapter": 1, "paragraph_index": 3, "text": "Ben nodded in agreement.", "source_document_id": "book-9", "source_text_hash": "n2", "source_reference": {"chapter": 1, "paragraph_index": 3, "source_document_id": "book-9", "source_text_hash": "n2", "excerpt": "Ben nodded in agreement."}},
+            {
+                "chapter": 1,
+                "paragraph_index": 1,
+                "text": "The morning light filled the room.",
+                "source_document_id": "book-9",
+                "source_text_hash": "n1",
+                "source_reference": {
+                    "chapter": 1,
+                    "paragraph_index": 1,
+                    "source_document_id": "book-9",
+                    "source_text_hash": "n1",
+                    "excerpt": "The morning light filled the room.",
+                },
+            },
+            {
+                "chapter": 1,
+                "paragraph_index": 3,
+                "text": "Ben nodded in agreement.",
+                "source_document_id": "book-9",
+                "source_text_hash": "n2",
+                "source_reference": {
+                    "chapter": 1,
+                    "paragraph_index": 3,
+                    "source_document_id": "book-9",
+                    "source_text_hash": "n2",
+                    "excerpt": "Ben nodded in agreement.",
+                },
+            },
         ],
         "segments": segments,
         "source_artifacts": {"normalized_story": "analysis/normalized_story.json"},
     }
 
 
-def _manifest(tmp_path: Path, *, ada_voice: str = "v1", ben_voice: str = "v2", story_kwargs: dict | None = None, renderer_contract_version: int = 1, unresolved_policy: str = "block"):
+def _manifest(
+    tmp_path: Path,
+    *,
+    ada_voice: str = "v1",
+    ben_voice: str = "v2",
+    story_kwargs: dict | None = None,
+    renderer_contract_version: int = 1,
+    unresolved_policy: str = "block",
+):
     story = _story(**(story_kwargs or {}))
     plan = _plan(ada_voice=ada_voice, ben_voice=ben_voice)
     registry = _registry()
-    config = {"voice_planner": {"renderer_contract_version": renderer_contract_version, "default_unresolved_speaker_policy": unresolved_policy, "manifest_filename": "synthesis_manifest.json"}}
-    result = build_synthesis_manifest(story, plan, registry, config, unresolved_speaker_policy=unresolved_policy)
+    config = {
+        "voice_planner": {
+            "renderer_contract_version": renderer_contract_version,
+            "default_unresolved_speaker_policy": unresolved_policy,
+            "manifest_filename": "synthesis_manifest.json",
+        }
+    }
+    result = build_synthesis_manifest(
+        story, plan, registry, config, unresolved_speaker_policy=unresolved_policy
+    )
     manifest = result.manifest
     if story_kwargs and story_kwargs.get("note_only"):
-        manifest = replace(manifest, validation_report=replace(manifest.validation_report, warnings=[*manifest.validation_report.warnings, "note-only metadata change"]))
+        manifest = replace(
+            manifest,
+            validation_report=replace(
+                manifest.validation_report,
+                warnings=[*manifest.validation_report.warnings, "note-only metadata change"],
+            ),
+        )
     if story_kwargs and story_kwargs.get("omitted"):
-        manifest = replace(manifest, render_units=[*manifest.render_units[:-1], replace(manifest.render_units[-1], validation_status="skipped", warnings=["manifest omission"], blocked_reason=None)])
+        manifest = replace(
+            manifest,
+            render_units=[
+                *manifest.render_units[:-1],
+                replace(
+                    manifest.render_units[-1],
+                    validation_status="skipped",
+                    warnings=["manifest omission"],
+                    blocked_reason=None,
+                ),
+            ],
+        )
     if story_kwargs and story_kwargs.get("unsafe_key"):
-        manifest = replace(manifest, render_units=[replace(manifest.render_units[0], output_artifact_key="../escape.wav"), *manifest.render_units[1:]])
+        manifest = replace(
+            manifest,
+            render_units=[
+                replace(manifest.render_units[0], output_artifact_key="../escape.wav"),
+                *manifest.render_units[1:],
+            ],
+        )
     return manifest
 
 
 @dataclass
 class FakeSession(ProviderRenderSession):
-    adapter: "FakeProviderAdapter"
+    adapter: FakeProviderAdapter
 
     def render(self, request: ProviderRenderRequest, output_path: Path) -> ProviderRenderResult:
         self.adapter.render_requests.append(request)
         if self.adapter.fail_next:
             self.adapter.fail_next = False
-            raise RenderFailure(RenderFailureType.SYNTHESIS_FAILURE, "temporary failure", retryable=True, provider=self.adapter.provider_id)
+            raise RenderFailure(
+                RenderFailureType.SYNTHESIS_FAILURE,
+                "temporary failure",
+                retryable=True,
+                provider=self.adapter.provider_id,
+            )
         if self.adapter.permanent_fail_next:
             self.adapter.permanent_fail_next = False
-            raise RenderFailure(RenderFailureType.UNSUPPORTED_VOICE, "permanent failure", retryable=False, provider=self.adapter.provider_id)
+            raise RenderFailure(
+                RenderFailureType.UNSUPPORTED_VOICE,
+                "permanent failure",
+                retryable=False,
+                provider=self.adapter.provider_id,
+            )
         _make_wav(output_path, duration=0.05)
-        return ProviderRenderResult(provider=self.adapter.provider_id, provider_adapter_version=self.adapter.adapter_version, model_version=self.adapter.model_version, output_path=output_path, claimed_deterministic=True, warnings=[])
+        return ProviderRenderResult(
+            provider=self.adapter.provider_id,
+            provider_adapter_version=self.adapter.adapter_version,
+            model_version=self.adapter.model_version,
+            output_path=output_path,
+            claimed_deterministic=True,
+            warnings=[],
+        )
 
 
 class FakeProviderAdapter(TTSProviderAdapter):
-    def __init__(self, provider_id: str, *, adapter_version: str = "1.0.0", model_version: str = "model-a", supported_voices: set[str] | None = None):
+    def __init__(
+        self,
+        provider_id: str,
+        *,
+        adapter_version: str = "1.0.0",
+        model_version: str = "model-a",
+        supported_voices: set[str] | None = None,
+    ):
         self.provider_id = provider_id
         self.adapter_version = adapter_version
         self.model_version = model_version
@@ -241,7 +494,16 @@ class FakeProviderAdapter(TTSProviderAdapter):
 
     @property
     def capabilities(self) -> ProviderCapabilities:
-        return ProviderCapabilities(provider_id=self.provider_id, adapter_version=self.adapter_version, model_version=self.model_version, supported_output_formats=("wav",), supported_sample_rates=(24000,), supported_channel_counts=(1,), supports_seed=False, deterministic=False)
+        return ProviderCapabilities(
+            provider_id=self.provider_id,
+            adapter_version=self.adapter_version,
+            model_version=self.model_version,
+            supported_output_formats=("wav",),
+            supported_sample_rates=(24000,),
+            supported_channel_counts=(1,),
+            supports_seed=False,
+            deterministic=False,
+        )
 
     def open_session(self) -> ProviderRenderSession:
         self.open_session_calls += 1
@@ -249,7 +511,12 @@ class FakeProviderAdapter(TTSProviderAdapter):
 
     def validate_voice(self, voice_id: str) -> None:
         if voice_id not in self.supported_voices:
-            raise RenderFailure(RenderFailureType.UNSUPPORTED_VOICE, f"unsupported voice: {voice_id}", retryable=False, provider=self.provider_id)
+            raise RenderFailure(
+                RenderFailureType.UNSUPPORTED_VOICE,
+                f"unsupported voice: {voice_id}",
+                retryable=False,
+                provider=self.provider_id,
+            )
 
 
 def _renderer(tmp_path: Path, *, max_attempts: int = 2, allow_ready_with_warnings: bool = False):
@@ -265,7 +532,11 @@ def _renderer(tmp_path: Path, *, max_attempts: int = 2, allow_ready_with_warning
         allow_ready_with_warnings=allow_ready_with_warnings,
         max_attempts=max_attempts,
         retry_delay_seconds=0.0,
-        retryable_failure_types=(RenderFailureType.SYNTHESIS_FAILURE, RenderFailureType.TIMEOUT, RenderFailureType.PROVIDER_UNAVAILABLE),
+        retryable_failure_types=(
+            RenderFailureType.SYNTHESIS_FAILURE,
+            RenderFailureType.TIMEOUT,
+            RenderFailureType.PROVIDER_UNAVAILABLE,
+        ),
     )
     return SegmentRenderer(context)
 
@@ -283,7 +554,9 @@ def test_basic_rendering_writes_audio_sidecars_and_report(tmp_path: Path):
     assert report.rendered_units == 4
     assert provider.open_session_calls == 1
     assert beta.open_session_calls == 1
-    assert [item.render_unit_id for item in report.unit_results] == [unit.render_unit_id for unit in sorted(manifest.render_units, key=lambda u: u.source_order)]
+    assert [item.render_unit_id for item in report.unit_results] == [
+        unit.render_unit_id for unit in sorted(manifest.render_units, key=lambda u: u.source_order)
+    ]
 
     for unit in manifest.render_units:
         audio_path = renderer.resolve_artifact_path(unit.output_artifact_key)
@@ -331,11 +604,15 @@ def test_changed_text_voice_control_and_notes_inputs_invalidate_only_affected_un
     assert report_notes.rendered_units == 0
 
     changed_manifest_hash = replace(base, manifest_content_hash="manifest-hash-2")
-    report_manifest_hash = renderer.render(changed_manifest_hash, adapters={"alpha": provider, "beta": beta})
+    report_manifest_hash = renderer.render(
+        changed_manifest_hash, adapters={"alpha": provider, "beta": beta}
+    )
     assert report_manifest_hash.cache_hits == 4
     assert report_manifest_hash.rendered_units == 0
 
-    changed_text = _manifest(tmp_path, story_kwargs={"ada_text": '"We should leave now," Ada said.'})
+    changed_text = _manifest(
+        tmp_path, story_kwargs={"ada_text": '"We should leave now," Ada said.'}
+    )
     report_text = renderer.render(changed_text, adapters={"alpha": provider, "beta": beta})
     assert report_text.rendered_units == 1
 
@@ -347,8 +624,12 @@ def test_changed_text_voice_control_and_notes_inputs_invalidate_only_affected_un
     report_control = renderer.render(changed_control, adapters={"alpha": provider, "beta": beta})
     assert report_control.rendered_units == 1
 
-    changed_pronunciation = _manifest(tmp_path, story_kwargs={"ada_pronunciation_notes": "Ada pronounced AH-dah"})
-    report_pronunciation = renderer.render(changed_pronunciation, adapters={"alpha": provider, "beta": beta})
+    changed_pronunciation = _manifest(
+        tmp_path, story_kwargs={"ada_pronunciation_notes": "Ada pronounced AH-dah"}
+    )
+    report_pronunciation = renderer.render(
+        changed_pronunciation, adapters={"alpha": provider, "beta": beta}
+    )
     assert report_pronunciation.rendered_units == 1
 
 
@@ -365,7 +646,9 @@ def test_renderer_contract_and_adapter_version_changes_invalidate_cache(tmp_path
     assert report_adapter.rendered_units == 4
 
     newer_manifest = _manifest(tmp_path, renderer_contract_version=2)
-    report_contract = renderer.render(newer_manifest, adapters={"alpha": provider_new, "beta": beta_new})
+    report_contract = renderer.render(
+        newer_manifest, adapters={"alpha": provider_new, "beta": beta_new}
+    )
     assert report_contract.rendered_units == 4
 
 
@@ -390,7 +673,9 @@ def test_missing_audio_sidecar_and_corrupt_audio_rerender(tmp_path: Path):
 
 
 def test_blocked_manifest_and_blocked_unit_do_not_call_provider(tmp_path: Path):
-    blocked_manifest = _manifest(tmp_path, unresolved_policy="block", story_kwargs={"blocked": True})
+    blocked_manifest = _manifest(
+        tmp_path, unresolved_policy="block", story_kwargs={"blocked": True}
+    )
     renderer = _renderer(tmp_path)
     provider = FakeProviderAdapter("alpha")
     beta = FakeProviderAdapter("beta")
@@ -400,7 +685,9 @@ def test_blocked_manifest_and_blocked_unit_do_not_call_provider(tmp_path: Path):
     assert beta.open_session_calls == 0
 
     omit_manifest = _manifest(tmp_path, unresolved_policy="omit", story_kwargs={"omitted": True})
-    report_omit = renderer.render(omit_manifest, adapters={"alpha": provider, "beta": beta}, allow_ready_with_warnings=True)
+    report_omit = renderer.render(
+        omit_manifest, adapters={"alpha": provider, "beta": beta}, allow_ready_with_warnings=True
+    )
     assert report_omit.skipped_units == 1
     assert report_omit.blocked_units == 0
 
@@ -430,7 +717,11 @@ def test_retry_policy_and_atomic_write_failure_and_resume(tmp_path: Path, monkey
         raise OSError("atomic replace failed")
 
     monkeypatch.setattr("app.renderer.engine.os.replace", fail_replace)
-    report_atomic = renderer2.render(manifest2, adapters={"alpha": provider2, "beta": beta2}, unit_ids=[first_unit.render_unit_id])
+    report_atomic = renderer2.render(
+        manifest2,
+        adapters={"alpha": provider2, "beta": beta2},
+        unit_ids=[first_unit.render_unit_id],
+    )
     assert report_atomic.failed_units == 1
     assert audio_path.read_bytes() == original
 
@@ -451,7 +742,11 @@ def test_retry_policy_and_atomic_write_failure_and_resume(tmp_path: Path, monkey
         return original_replace(src, dst)
 
     monkeypatch.setattr("app.renderer.engine.os.replace", fail_second_replace)
-    report_sidecar = renderer2.render(manifest2, adapters={"alpha": provider2, "beta": beta2}, unit_ids=[first_unit.render_unit_id])
+    report_sidecar = renderer2.render(
+        manifest2,
+        adapters={"alpha": provider2, "beta": beta2},
+        unit_ids=[first_unit.render_unit_id],
+    )
     assert report_sidecar.failed_units == 1
     assert audio_path.read_bytes() == original
     assert Path(str(audio_path) + ".json").read_text(encoding="utf-8") == original_sidecar
@@ -460,6 +755,7 @@ def test_retry_policy_and_atomic_write_failure_and_resume(tmp_path: Path, monkey
     resumed_again = renderer2.render(manifest2, adapters={"alpha": provider2, "beta": beta2})
     assert resumed_again.cache_hits == 4
     assert resumed_again.rendered_units == 0
+
 
 def test_unsafe_artifact_path_is_rejected_before_provider_invocation(tmp_path: Path):
     manifest = _manifest(tmp_path, story_kwargs={"unsafe_key": True})
@@ -473,7 +769,9 @@ def test_unsafe_artifact_path_is_rejected_before_provider_invocation(tmp_path: P
     assert beta.open_session_calls == 0
 
 
-def test_reordered_manifest_input_renders_in_canonical_order_and_does_not_mutate_input(tmp_path: Path):
+def test_reordered_manifest_input_renders_in_canonical_order_and_does_not_mutate_input(
+    tmp_path: Path,
+):
     manifest = _manifest(tmp_path, story_kwargs={"source_order_variant": True})
     original = copy.deepcopy(manifest)
     renderer = _renderer(tmp_path)
@@ -482,6 +780,8 @@ def test_reordered_manifest_input_renders_in_canonical_order_and_does_not_mutate
     beta = FakeProviderAdapter("beta")
 
     report = renderer.render(manifest, adapters={"alpha": provider, "beta": beta})
-    assert [item.render_unit_id for item in report.unit_results] == [unit.render_unit_id for unit in sorted(manifest.render_units, key=lambda u: u.source_order)]
+    assert [item.render_unit_id for item in report.unit_results] == [
+        unit.render_unit_id for unit in sorted(manifest.render_units, key=lambda u: u.source_order)
+    ]
     assert manifest == original
     assert renderer.context == original_context

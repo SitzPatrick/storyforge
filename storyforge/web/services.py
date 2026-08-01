@@ -9,6 +9,7 @@ from app.config import load_settings
 from app.diagnostics import _check_binary, _check_dir_writable
 from app.kokoro_client import KokoroClient
 
+from .application import WebApplicationService
 from .config import WebSettings, load_web_settings
 from .jobs import JobManager
 from .projects import ProjectManager
@@ -19,13 +20,19 @@ class WebServices:
     settings: WebSettings
     projects: ProjectManager
     jobs: JobManager
+    application: WebApplicationService
 
     @classmethod
     def create(cls, settings: WebSettings | None = None) -> WebServices:
         settings = settings or load_web_settings()
         projects = ProjectManager(settings)
         jobs = JobManager(settings, projects)
-        return cls(settings=settings, projects=projects, jobs=jobs)
+        return cls(
+            settings=settings,
+            projects=projects,
+            jobs=jobs,
+            application=WebApplicationService(settings, projects),
+        )
 
     def diagnostics(self) -> dict[str, Any]:
         checks: list[dict[str, Any]] = []

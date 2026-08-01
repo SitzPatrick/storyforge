@@ -12,7 +12,11 @@
   </div>
   <div class="actions stack">
     <form action="/projects/{{ project.project_slug }}/analyze" method="post"><button class="button" type="submit">Analyze</button></form>
+    <form action="/projects/{{ project.project_slug }}/normalize" method="post"><button class="button" type="submit">Normalize</button></form>
+    <form action="/projects/{{ project.project_slug }}/plan" method="post"><button class="button" type="submit">Plan voices</button></form>
+    <form action="/projects/{{ project.project_slug }}/manifest" method="post"><button class="button" type="submit">Build manifest</button></form>
     <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Build</button></form>
+    <a class="button" href="/projects/{{ project.project_slug }}/voice-plan">Voice plan</a>
     <a class="button" href="/projects/{{ project.project_slug }}/build">Build log</a>
     <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
   </div>

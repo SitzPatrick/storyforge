@@ -5,13 +5,12 @@ services:
       dockerfile: Dockerfile
     image: storyforge:latest
     container_name: storyforge
+    command: ["storyforge", "web", "--host", "0.0.0.0", "--port", "8787"]
     ports:
-      - "8787:8787"
+      - "${STORYFORGE_HOST_PORT:-8790}:8787"
     environment:
-      PUID: ${PUID:-99}
-      PGID: ${PGID:-100}
-      UMASK: ${UMASK:-022}
       TZ: ${TZ:-America/New_York}
+      STORYFORGE_CONFIG: ${STORYFORGE_CONFIG:-/config/config.yaml}
       STORYFORGE_HOST: ${STORYFORGE_HOST:-0.0.0.0}
       STORYFORGE_PORT: ${STORYFORGE_PORT:-8787}
       STORYFORGE_CONFIG_DIR: ${STORYFORGE_CONFIG_DIR:-/config}
@@ -21,7 +20,8 @@ services:
       STORYFORGE_CACHE_DIR: ${STORYFORGE_CACHE_DIR:-/data/cache}
       STORYFORGE_OUTPUT_DIR: ${STORYFORGE_OUTPUT_DIR:-/data/output}
       STORYFORGE_LOG_DIR: ${STORYFORGE_LOG_DIR:-/data/logs}
-      KOKORO_URL: ${KOKORO_URL:-http://kokoro:8880}
+      KOKORO_URL: ${KOKORO_URL:-http://Kokoro-FastAPI:8880}
+
     volumes:
       - ${STORYFORGE_CONFIG_PATH:-/mnt/user/appdata/storyforge/config}:/config
       - ${STORYFORGE_BOOKS_PATH:-/mnt/user/storyforge/books}:/data/books
@@ -35,4 +35,5 @@ services:
 
 networks:
   storyforge:
-    name: ${STORYFORGE_NETWORK:-storyforge}
+    external: true
+    name: ${STORYFORGE_NETWORK:-storyforge-net}
