@@ -342,7 +342,7 @@ def create_app(
         from app.kokoro_client import KokoroClient
 
         client = KokoroClient(settings.kokoro_url)
-        voices = client.list_voices()
+        voices = sorted(set(client.list_voices()) | {"af_heart"})
         return {"voices": [{"id": voice, "provider": "kokoro"} for voice in voices]}
 
     @app.get("/api/projects/{slug}/voice-editor")
