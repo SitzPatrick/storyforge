@@ -22,6 +22,8 @@
       {% endfor %}
     </select>
   </fieldset>
-  <button class="button primary" type="submit">Create project</button>
+  <label class="check-row" id="analyze"><input type="checkbox" name="analyze_after_create" value="on" checked> Analyze EPUB after creating the project</label>
+  <p class="muted">Analysis extracts the book structure and prepares the next pipeline stages. You can review progress before building.</p>
+  <button class="button primary" type="submit">Create and analyze EPUB</button>
 </form>
 {% endblock %}

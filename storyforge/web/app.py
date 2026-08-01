@@ -109,6 +109,7 @@ def create_app(
         source_mode: str = Form("upload"),
         existing_book: str = Form(""),
         epub_file: Annotated[UploadFile | None, File()] = None,
+        analyze_after_create: str = Form(""),
     ):
         try:
             slug = project_slug.strip() or None
@@ -145,6 +146,11 @@ def create_app(
                 settings=settings,
                 error=str(exc),
             )
+        if analyze_after_create == "on":
+            try:
+                services.jobs.start(record, "analyze")
+            except JobBusyError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from None
         return RedirectResponse(url=f"/projects/{record.project_slug}", status_code=303)
 
     @app.get("/projects/{slug}")
