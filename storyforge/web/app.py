@@ -368,8 +368,11 @@ def create_app(
 
         preview_root = settings.cache_dir / "voice-previews"
         preview_path = preview_root / f"{voice_id}.wav"
+        kokoro_url = settings.kokoro_url.rstrip("/")
+        if not kokoro_url.endswith("/v1"):
+            kokoro_url += "/v1"
         if not preview_path.exists():
-            KokoroClient(settings.kokoro_url, voice=voice_id).synthesize(
+            KokoroClient(kokoro_url, voice=voice_id).synthesize(
                 "This is a StoryForge voice preview.", preview_path
             )
         return FileResponse(str(preview_path), media_type="audio/wav", filename=preview_path.name)
