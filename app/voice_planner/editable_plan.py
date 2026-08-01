@@ -398,9 +398,11 @@ def _coerce_editable_plan(data: Mapping[str, Any], *, generated_plan: VoicePlan 
     narrator_assignment = gen.narrator.assignment
     if narrator_assignment is None:
         raise EditableVoicePlanError("generated narrator assignment is missing")
-    narrator = _coerce_editable_assignment(payload.get("editable", {}).get("narrator") if isinstance(payload.get("editable"), Mapping) else None, "narrator", None, narrator_assignment, gen.narrator.rationale, registry=registry)
+    editable_section = payload.get("editable")
+    if not isinstance(editable_section, Mapping):
+        editable_section = payload
+    narrator = _coerce_editable_assignment(editable_section.get("narrator"), "narrator", None, narrator_assignment, gen.narrator.rationale, registry=registry)
     characters: list[EditableAssignment] = []
-    editable_section = payload.get("editable", {}) if isinstance(payload.get("editable"), Mapping) else {}
     character_edits = editable_section.get("characters", []) if isinstance(editable_section, Mapping) else []
     edits_by_id = {}
     for entry in character_edits:
