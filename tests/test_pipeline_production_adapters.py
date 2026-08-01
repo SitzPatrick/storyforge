@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from test_renderer_engine import FakeProviderAdapter, _manifest  # noqa: E402
 
 from app.pipeline import BuildRequest, BuildStage, StageContext, build_production_adapters
-from app.pipeline.production_adapters import ProductionStageAdapter
+from app.pipeline.production_adapters import ProductionStageAdapter, _materialize_mastering_sidecars
 
 
 def test_web_production_factory_registers_every_real_stage_without_fake_adapters():
@@ -200,3 +200,24 @@ def test_production_adapter_persisted_cache_and_voice_change_rebuild(tmp_path: P
     assert not fresh_adapter.inspect(
         changed_request, context, expected_input_identity=changed_identity
     ).cache_reusable
+
+
+def test_materialize_mastering_sidecars_replaces_stale_canonical_copy_atomically(tmp_path: Path):
+    source = tmp_path / "chapter-assembly.wav.json"
+    target = tmp_path / "chapter_sidecar.json"
+    source.write_text(json.dumps({"chapter_input_hash": "new"}) + "\n", encoding="utf-8")
+    target.write_text(json.dumps({"chapter_input_hash": "old"}) + "\n", encoding="utf-8")
+
+    _materialize_mastering_sidecars(
+        {
+            "chapter_results": [
+                {
+                    "sidecar_path": str(source),
+                    "output_artifact_path": str(tmp_path / "chapter.wav"),
+                }
+            ]
+        }
+    )
+
+    assert target.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
+    assert not (tmp_path / ".chapter_sidecar.json.tmp").exists()

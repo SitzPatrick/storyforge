@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
+import os
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from pathlib import Path
@@ -324,8 +324,22 @@ def _materialize_mastering_sidecars(payload: Mapping[str, Any]) -> None:
             continue
         source = Path(str(sidecar_value))
         target = source.parent / "chapter_sidecar.json"
-        if source.is_file() and not target.exists():
-            shutil.copyfile(source, target)
+        if not source.is_file():
+            continue
+        source_bytes = source.read_bytes()
+        if target.exists() and target.read_bytes() == source_bytes:
+            continue
+        temporary = target.with_name(f".{target.name}.tmp")
+        try:
+            temporary.write_bytes(source_bytes)
+            os.replace(temporary, target)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+        if target.read_bytes() != source_bytes:
+            raise ProductionAdapterError(
+                f"assembled chapter sidecar mismatch after atomic update: {target}"
+            )
 
 
 def _require_file(path: Path, label: str) -> None:
