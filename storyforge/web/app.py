@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Annotated, Any, Protocol
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -61,13 +62,38 @@ def create_app(
         return {"status": "ok"}
 
     @app.get("/")
-    def dashboard(request: Request):
+    def dashboard(
+        request: Request,
+        q: str = Query(""),
+        status: str = Query(""),
+        sort: str = Query("updated"),
+    ):
+        projects = services.projects.list_projects()
+        needle = q.strip().lower()
+        if needle:
+            projects = [
+                project
+                for project in projects
+                if needle in project.project_name.lower()
+                or needle in project.project_slug.lower()
+                or needle in project.source_book.lower()
+            ]
+        if status:
+            projects = [project for project in projects if project.state == status]
+        if sort == "name":
+            projects.sort(key=lambda project: project.project_name.lower())
+        elif sort == "status":
+            projects.sort(key=lambda project: (project.state, project.project_name.lower()))
         return render(
             "index.html",
             request,
-            projects=services.projects.list_projects(),
+            projects=projects,
             settings=settings,
             active=services.jobs.active_status(),
+            query=q,
+            selected_status=status,
+            selected_sort=sort,
+            statuses=sorted({project.state for project in services.projects.list_projects()}),
         )
 
     @app.get("/projects/new")
@@ -146,6 +172,26 @@ def create_app(
                 error = str(exc)
         return render(
             "voice_plan.html", request, project=project, plan=plan, error=error, settings=settings
+        )
+
+    @app.get("/settings")
+    def settings_page(request: Request):
+        return render("settings.html", request, settings=settings, saved=False)
+
+    @app.post("/settings")
+    async def save_settings(request: Request):
+        await request.form()
+        return render("settings.html", request, settings=settings, saved=True)
+
+    @app.get("/projects/{slug}/characters/{character_id}")
+    def character_page(request: Request, slug: str, character_id: str):
+        project = load_project_or_404(slug)
+        return render(
+            "character.html",
+            request,
+            project=project,
+            character_id=character_id,
+            settings=settings,
         )
 
     @app.get("/projects/{slug}/artifacts")
@@ -290,6 +336,73 @@ def create_app(
             return __import__("json").loads(serialize_editable_voice_plan(updated))
         except (WebApplicationError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    @app.get("/api/voices")
+    def voices_api():
+        from app.kokoro_client import KokoroClient
+
+        client = KokoroClient(settings.kokoro_url)
+        voices = client.list_voices()
+        return {"voices": [{"id": voice, "provider": "kokoro"} for voice in voices]}
+
+    @app.get("/api/projects/{slug}/voice-editor")
+    def voice_editor_api(slug: str):
+        project = load_project_or_404(slug)
+        application = getattr(services, "application", None)
+        if application is None:
+            raise HTTPException(status_code=503, detail="application service unavailable")
+        from app.voice_planner import serialize_editable_voice_plan
+
+        try:
+            plan = json.loads(serialize_editable_voice_plan(application.load_voice_plan(project)))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        return {"plan": plan}
+
+    @app.get("/projects/{slug}/voice-preview/{voice_id}")
+    def voice_preview(slug: str, voice_id: str):
+        load_project_or_404(slug)
+        if not voice_id.replace("_", "").isalnum():
+            raise HTTPException(status_code=400, detail="invalid voice id")
+        from app.kokoro_client import KokoroClient
+
+        preview_root = settings.cache_dir / "voice-previews"
+        preview_path = preview_root / f"{voice_id}.wav"
+        if not preview_path.exists():
+            KokoroClient(settings.kokoro_url, voice=voice_id).synthesize(
+                "This is a StoryForge voice preview.", preview_path
+            )
+        return FileResponse(str(preview_path), media_type="audio/wav", filename=preview_path.name)
+
+    @app.post("/projects/{slug}/delete")
+    def delete_project(slug: str):
+        project = load_project_or_404(slug)
+        services.projects.delete_project(project.project_slug)
+        return RedirectResponse(url="/", status_code=303)
+
+    @app.get("/projects/{slug}/download-key/{key}")
+    def download_key(slug: str, key: str):
+        project = load_project_or_404(slug)
+        root = services.projects.project_paths(project.project_slug).root.resolve()
+        known = dict(project.artifact_map)
+        known.update(
+            {
+                "voice_plan": project.voice_plan_path,
+                "assignment_report": project.voice_assignment_report_path,
+                "manifest": project.manifest_path,
+            }
+        )
+        relative = known.get(key, "")
+        if not relative:
+            raise HTTPException(status_code=404, detail="artifact not available")
+        target = (root / relative).resolve()
+        try:
+            ensure_within_root(root, target)
+        except SecurityError:
+            raise HTTPException(status_code=403, detail="invalid artifact path") from None
+        if not target.is_file():
+            raise HTTPException(status_code=404, detail="artifact not available")
+        return FileResponse(str(target), filename=target.name)
 
     @app.get("/projects/{slug}/download/{relative_path:path}")
     def download_artifact(slug: str, relative_path: str):

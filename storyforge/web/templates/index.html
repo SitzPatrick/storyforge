@@ -1,38 +1,11 @@
 {% extends "base.html" %}
-{% block title %}StoryForge Dashboard{% endblock %}
+{% block title %}Projects · StoryForge{% endblock %}
 {% block content %}
-<section class="hero">
-  <div>
-    <h1>Dashboard</h1>
-    <p>Open projects, start builds, review logs, and download artifacts from your Unraid box.</p>
-  </div>
-  <div class="actions">
-    <a class="button primary" href="/projects/new">Create project</a>
-    <a class="button" href="/diagnostics">Diagnostics</a>
-  </div>
+<section class="page-heading"><div><p class="eyebrow">LIBRARY</p><h1>Your projects</h1><p class="lede">Build, review, and manage your audiobook workspaces.</p></div><a class="button primary" href="/projects/new">＋ New project</a></section>
+{% if active %}<div class="banner warning"><strong>Build in progress</strong><span>{{ active.project_slug }} · {{ active.stage }}</span><a href="/projects/{{ active.project_slug }}/build">View progress →</a></div>{% endif %}
+<form class="toolbar" method="get" role="search"><label class="search"><span>⌕</span><input name="q" value="{{ query }}" placeholder="Search projects" aria-label="Search projects"></label><select name="status" aria-label="Filter by status"><option value="">All statuses</option>{% for item in statuses %}<option value="{{ item }}" {% if item == selected_status %}selected{% endif %}>{{ item|title }}</option>{% endfor %}</select><select name="sort" aria-label="Sort projects"><option value="updated" {% if selected_sort == 'updated' %}selected{% endif %}>Recently updated</option><option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Name</option><option value="status" {% if selected_sort == 'status' %}selected{% endif %}>Status</option></select><button class="button" type="submit">Apply</button></form>
+<section class="project-grid" aria-label="Projects">
+{% for project in projects %}<article class="project-card"><div class="cover-placeholder">{{ project.project_name[:1]|upper }}</div><div class="project-card-body"><div class="card-top"><div><h2>{{ project.project_name }}</h2><p class="muted">{{ project.source_book }}</p></div><span class="status-dot {{ project.state }}" title="{{ project.state }}"></span></div><div class="meta-grid"><div><small>STATUS</small><strong>{{ project.state|title }}</strong></div><div><small>VOICE PLAN</small><strong>{{ project.voice_plan_status|replace('-', ' ')|title }}</strong></div><div><small>UPDATED</small><strong>{{ project.updated_at[:16]|replace('T', ' ') }}</strong></div><div><small>BUILD</small><strong>{{ project.last_build_id[:8] or 'Not built' }}</strong></div></div><div class="card-actions"><a class="button primary" href="/projects/{{ project.project_slug }}">Open</a><form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button" type="submit">Build</button></form><a class="button" href="/projects/{{ project.project_slug }}/build">Rebuild</a><form action="/projects/{{ project.project_slug }}/delete" method="post" onsubmit="return confirm('Delete this project and its artifacts?')"><button class="button danger" type="submit">Delete</button></form></div></div></article>
+{% else %}<div class="empty card"><h2>No matching projects</h2><p>Create your first project to start a book.</p><a class="button primary" href="/projects/new">Create project</a></div>{% endfor %}
 </section>
-
-{% if active %}
-<div class="alert warning">Active job: {{ active.project_slug }} — {{ active.status }} / {{ active.stage }}</div>
-{% endif %}
-
-<div class="grid cards">
-  {% for project in projects %}
-  <article class="card">
-    <h2><a href="/projects/{{ project.project_slug }}">{{ project.project_name }}</a></h2>
-    <p class="muted">Slug: {{ project.project_slug }}</p>
-    <p>Status: <span class="pill {{ project.state }}">{{ project.state }}</span></p>
-    <p>Analysis: {{ project.analysis_state }}</p>
-    <p>Last build: {{ project.last_build_id or '—' }}</p>
-    <p>Updated: {{ project.updated_at }}</p>
-    <div class="actions">
-      <a class="button" href="/projects/{{ project.project_slug }}">Open</a>
-      <a class="button" href="/projects/{{ project.project_slug }}/build">Build</a>
-      <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
-    </div>
-  </article>
-  {% else %}
-  <p>No projects yet. Create one to begin.</p>
-  {% endfor %}
-</div>
 {% endblock %}

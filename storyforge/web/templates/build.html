@@ -1,40 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Build {{ project.project_name }}{% endblock %}
+{% block title %}Build · {{ project.project_name }}{% endblock %}
 {% block content %}
-<section class="hero">
-  <div>
-    <h1>Build</h1>
-    <p>{{ project.project_name }} — {{ project.project_slug }}</p>
-    <p>Status: <span id="job-status" class="pill {{ status.status }}">{{ status.status }}</span></p>
-    <p>Stage: <span id="job-stage">{{ status.stage }}</span></p>
-    <p>Chapter: <span id="job-chapter">{{ status.current_chapter or '—' }}</span> / <span id="job-total">{{ status.total_chapters or '—' }}</span></p>
-    <p>Message: <span id="job-message">{{ status.message or '—' }}</span></p>
-    <p>Started: <span id="job-started">{{ status.started_at or '—' }}</span></p>
-    <p>Finished: <span id="job-finished">{{ status.finished_at or '—' }}</span></p>
-  </div>
-  <div class="actions stack">
-    <form action="/projects/{{ project.project_slug }}/analyze" method="post"><button class="button" type="submit">1. Analyze Book</button></form>
-    <form action="/projects/{{ project.project_slug }}/normalize" method="post"><button class="button" type="submit">2. Normalize Analysis</button></form>
-    <form action="/projects/{{ project.project_slug }}/plan" method="post"><button class="button" type="submit">3. Generate Voice Plan</button></form>
-    <a class="button" href="/projects/{{ project.project_slug }}/voice-plan">4. Review/Edit Voice Plan</a>
-    <form action="/projects/{{ project.project_slug }}/manifest" method="post"><button class="button" type="submit">5. Generate Synthesis Manifest</button></form>
-    <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">6. Build Audiobook</button></form>
-    <form action="/projects/{{ project.project_slug }}/resume" method="post"><button class="button" type="submit">Resume</button></form>
-    <form action="/projects/{{ project.project_slug }}/cancel" method="post"><button class="button danger" type="submit">Cancel</button></form>
-    <a class="button" href="/projects/{{ project.project_slug }}">Project</a>
-    <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
-  </div>
-</section>
-
-<div class="card">
-  <h2>Live log</h2>
-  <pre id="build-log" class="log">{% for line in status.build_log_tail %}{{ line }}
-{% endfor %}</pre>
-</div>
-
-<script>
-window.STORYFORGE_BUILD_PAGE = {
-  slug: {{ project.project_slug|tojson }}
-};
-</script>
+<section class="page-heading"><div><p class="eyebrow">BUILD CENTER</p><h1>{{ project.project_name }}</h1><p class="lede">Live pipeline telemetry and build history.</p></div><div class="card-actions"><form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Start build</button></form><form action="/projects/{{ project.project_slug }}/cancel" method="post"><button class="button danger" type="submit">Cancel</button></form></div></section>
+<section class="card pipeline-card"><div class="section-heading"><div><p class="eyebrow">CURRENT RUN</p><h2><span id="job-status">{{ status.status|title }}</span> <span class="pill" id="job-stage">{{ status.stage|title }}</span></h2></div><span class="muted" id="job-elapsed">— elapsed</span></div><div class="pipeline-steps"><span data-stage="analyze">Analyze</span><span data-stage="normalize">Normalize</span><span data-stage="plan">Voice plan</span><span data-stage="manifest">Manifest</span><span data-stage="render">Render</span><span data-stage="assemble">Assemble</span><span data-stage="master">Master</span><span data-stage="package">Package</span></div><div class="progress-track"><div id="job-progress" style="width:0%"></div></div><div class="run-details"><span>Chapter <strong id="job-chapter">{{ status.current_chapter or '—' }}</strong> / <strong id="job-total">{{ status.total_chapters or '—' }}</strong></span><span>Speaker <strong id="job-speaker">—</strong></span><span id="job-message">{{ status.message or 'Ready' }}</span></div></section>
+<section class="two-column"><div class="card" id="logs"><div class="section-heading"><h2>Logs</h2><span class="muted">auto-refresh</span></div><pre id="build-log" class="log">{% for line in status.build_log_tail %}{{ line }}
+{% endfor %}</pre></div><div class="card"><div class="section-heading"><h2>Build history</h2></div><div class="history-row"><strong>{{ project.last_build_id[:12] or 'No builds yet' }}</strong><span>{{ project.updated_at[:16]|replace('T',' ') }}</span><span>{{ project.state|title }}</span></div><p class="muted">Previous runs remain available in the project workspace and reports.</p></div></section>
+<script>window.STORYFORGE_BUILD_PAGE={slug:{{ project.project_slug|tojson }}};</script>
 {% endblock %}

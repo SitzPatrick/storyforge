@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -153,6 +154,12 @@ class ProjectManager:
             source_filename=existing_book_path.name,
             source_bytes=existing_book_path.read_bytes(),
         )
+
+    def delete_project(self, slug: str) -> None:
+        paths = self.project_paths(slug)
+        if not paths.root.exists():
+            raise ProjectError(f"project not found: {slug}")
+        shutil.rmtree(paths.root)
 
     def project_source_path(self, record: ProjectRecord) -> Path:
         paths = self.project_paths(record.project_slug)

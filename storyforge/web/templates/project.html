@@ -1,49 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Project {{ project.project_name }}{% endblock %}
+{% block title %}{{ project.project_name }} · StoryForge{% endblock %}
 {% block content %}
-<section class="hero">
-  <div>
-    <h1>{{ project.project_name }}</h1>
-    <p class="muted">{{ project.project_slug }}</p>
-    <p>State: <span class="pill {{ project.state }}">{{ project.state }}</span></p>
-    <p>Analysis state: {{ project.analysis_state }}</p>
-    <p>Source: {{ project.source_book }}</p>
-    <p>Voice: {{ project.selected_voice or 'default' }}</p>
-  </div>
-  <div class="actions stack">
-    <form action="/projects/{{ project.project_slug }}/analyze" method="post"><button class="button" type="submit">Analyze</button></form>
-    <form action="/projects/{{ project.project_slug }}/normalize" method="post"><button class="button" type="submit">Normalize</button></form>
-    <form action="/projects/{{ project.project_slug }}/plan" method="post"><button class="button" type="submit">Plan voices</button></form>
-    <form action="/projects/{{ project.project_slug }}/manifest" method="post"><button class="button" type="submit">Build manifest</button></form>
-    <form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Build</button></form>
-    <a class="button" href="/projects/{{ project.project_slug }}/voice-plan">Voice plan</a>
-    <a class="button" href="/projects/{{ project.project_slug }}/build">Build log</a>
-    <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a>
-  </div>
-</section>
-
-<div class="grid cards">
-  <article class="card">
-    <h2>Metadata</h2>
-    <p>Project ID: {{ project.project_id }}</p>
-    <p>Created: {{ project.created_at }}</p>
-    <p>Updated: {{ project.updated_at }}</p>
-    <p>Last build ID: {{ project.last_build_id or '—' }}</p>
-    <p>Selected voice: {{ project.selected_voice or '—' }}</p>
-    <p>Narrator: {{ project.narrator or '—' }}</p>
-  </article>
-  <article class="card">
-    <h2>Current job</h2>
-    <p>Status: {{ status.status }}</p>
-    <p>Stage: {{ status.stage }}</p>
-    <p>Chapter: {{ status.current_chapter or '—' }} / {{ status.total_chapters or '—' }}</p>
-    <p>Message: {{ status.message or '—' }}</p>
-    <p>Started: {{ status.started_at or '—' }}</p>
-    <p>Finished: {{ status.finished_at or '—' }}</p>
-    <div class="actions">
-      <a class="button" href="/projects/{{ project.project_slug }}/build">Open build</a>
-      <a class="button" href="/projects/{{ project.project_slug }}/artifacts">Open artifacts</a>
-    </div>
-  </article>
-</div>
+<section class="page-heading"><div><p class="eyebrow">PROJECT</p><h1>{{ project.project_name }}</h1><p class="lede">{{ project.source_book }}{% if project.series_id %} · {{ project.series_id }}{% endif %}</p></div><div class="card-actions"><form action="/projects/{{ project.project_slug }}/build" method="post"><button class="button primary" type="submit">Build audiobook</button></form><a class="button" href="/projects/{{ project.project_slug }}/voice-plan">Voice editor</a></div></section>
+<nav class="tabs" aria-label="Project sections"><a class="active" href="#overview">Overview</a><a href="#characters">Characters</a><a href="/projects/{{ project.project_slug }}/voice-plan">Voice plan</a><a href="/projects/{{ project.project_slug }}/build">Build history</a><a href="/projects/{{ project.project_slug }}/artifacts">Artifacts</a><a href="/projects/{{ project.project_slug }}/build#logs">Logs</a><a href="#downloads">Downloads</a></nav>
+<section id="overview" class="stats-row"><div class="stat card"><small>STATUS</small><strong>{{ project.state|title }}</strong><span class="muted">{{ status.message or 'Ready for your next build' }}</span></div><div class="stat card"><small>VOICE PLAN</small><strong>{{ project.voice_plan_status|replace('-', ' ')|title }}</strong><span class="muted">{{ project.build_mode }}</span></div><div class="stat card"><small>LAST BUILD</small><strong>{{ project.last_build_id[:12] or '—' }}</strong><span class="muted">{{ project.updated_at[:16]|replace('T', ' ') }}</span></div></section>
+<section class="two-column"><div class="card"><div class="section-heading"><div><p class="eyebrow">PIPELINE</p><h2>Build status</h2></div><a href="/projects/{{ project.project_slug }}/build">Open live view →</a></div><div class="mini-pipeline"><span class="done">✓ Analyze</span><span class="done">✓ Normalize</span><span class="done">✓ Voice plan</span><span class="done">✓ Manifest</span><span class="current">● Render</span><span>○ Assemble</span><span>○ Master</span><span>○ Package</span></div><p class="muted">{{ status.stage|title }} · {{ status.current_chapter or 0 }} / {{ status.total_chapters or '—' }} chapters</p></div><div class="card"><div class="section-heading"><div><p class="eyebrow">METADATA</p><h2>Book details</h2></div></div><dl class="details"><dt>Title</dt><dd>{{ project.project_name }}</dd><dt>Author</dt><dd>{{ project.narrator or 'Not set' }}</dd><dt>Series</dt><dd>{{ project.series_id or 'Standalone' }}</dd><dt>Source</dt><dd>{{ project.source_filename }}</dd></dl></div></section>
+<section id="characters" class="card"><div class="section-heading"><div><p class="eyebrow">CAST</p><h2>Characters</h2></div><a href="/projects/{{ project.project_slug }}/voice-plan">Manage voices →</a></div><p class="muted">Open Voice Editor to inspect dialogue counts, scenes, aliases, and sample dialogue.</p></section>
+<section id="downloads" class="card"><div class="section-heading"><div><p class="eyebrow">EXPORTS</p><h2>Downloads</h2></div></div><div class="download-grid">{% for key,label in [('final_m4b','Final M4B'),('voice_plan','Voice plan'),('assignment_report','Assignment report'),('manifest','Synthesis manifest'),('build_report','Build report'),('render_report','Render report')] %}{% if key in project.artifact_map or key in ['voice_plan','manifest','assignment_report'] %}<a class="download" href="/projects/{{ project.project_slug }}/download-key/{{ key }}"><span>⇩</span><strong>{{ label }}</strong><small>Download artifact</small></a>{% endif %}{% endfor %}</div></section>
 {% endblock %}

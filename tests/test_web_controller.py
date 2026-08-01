@@ -344,6 +344,35 @@ def test_fake_build_lifecycle_completion_failure_cancel_resume_and_single_active
     assert resumed["status"] == "running"
 
 
+def test_polished_workspace_routes_render_and_dashboard_filters(web_settings: WebSettings):
+    services = WebServices.create(web_settings)
+    services.projects.create_project(
+        project_name="A Sample Book",
+        project_slug="sample-book",
+        source_filename="sample.epub",
+        source_bytes=b"epub",
+    )
+    client = TestClient(create_app(web_settings, services))
+
+    dashboard = client.get("/?q=sample&sort=name")
+    assert dashboard.status_code == 200
+    assert "Your projects" in dashboard.text
+    assert "VOICE PLAN" in dashboard.text
+    assert "Search projects" in dashboard.text
+    assert "Delete" in dashboard.text
+
+    project = client.get("/projects/sample-book")
+    assert project.status_code == 200
+    assert "Characters" in project.text
+    assert "Downloads" in project.text
+    assert "Build status" in project.text
+
+    assert client.get("/settings").status_code == 200
+    assert client.get("/projects/sample-book/voice-plan").status_code == 200
+    assert client.get("/projects/sample-book/build").status_code == 200
+    assert client.get("/projects/sample-book/characters/character-a").status_code == 200
+
+
 def test_stale_running_job_is_marked_failed_on_startup(web_settings: WebSettings):
     services = WebServices.create(web_settings)
     project = services.projects.create_project(

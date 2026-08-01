@@ -1,15 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Voice Plan {{ project.project_name }}{% endblock %}
+{% block title %}Voice Editor · {{ project.project_name }}{% endblock %}
 {% block content %}
-<h1>Voice plan</h1>
-<p>{{ project.project_name }} — character-aware assignments</p>
-{% if error %}<div class="card error"><strong>Voice plan unavailable:</strong> {{ error }}</div>{% endif %}
-{% if not plan %}
-<div class="card"><p>Generate and validate the voice plan before building. A missing plan blocks character-aware synthesis.</p><form method="post" action="/projects/{{ project.project_slug }}/plan"><button type="submit">Generate Voice Plan</button></form></div>
-{% else %}
-<div class="card"><h2>Narrator</h2><p>{{ plan.narrator.display_name if plan.narrator is defined else plan.narrator }}</p></div>
-<div class="card"><h2>Characters</h2><table><thead><tr><th>Character</th><th>Effective voice</th><th>Locked</th><th>Validation</th></tr></thead><tbody>
-{% for character in plan.characters %}<tr><td>{{ character.display_name }}</td><td>{{ character.effective_assignment.provider_voice_id if character.effective_assignment is defined else "unassigned" }}</td><td>{{ character.locked if character.locked is defined else "no" }}</td><td>{{ character.validation_status if character.validation_status is defined else "unknown" }}</td></tr>{% endfor %}
-</tbody></table></div>
-{% endif %}
+<section class="page-heading"><div><p class="eyebrow">VOICE EDITOR</p><h1>{{ project.project_name }}</h1><p class="lede">Tune the cast without rebuilding the audiobook.</p></div><div class="card-actions"><button class="button" id="reset-plan" type="button">Reset generated plan</button><a class="button" href="/projects/{{ project.project_slug }}">Back to project</a></div></section>
+<div id="voice-alert" class="banner" hidden></div><section class="card"><div class="section-heading"><div><h2>Characters & narrator</h2><p class="muted">Assignments save immediately and remain separate from the build.</p></div><span id="save-state" class="pill">Loading…</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Character</th><th>Assigned voice</th><th>Lock</th><th>Preview</th><th>Lines</th><th>First appearance</th><th>Gender</th><th>Notes</th></tr></thead><tbody id="voice-rows"><tr><td colspan="8">Loading voice plan…</td></tr></tbody></table></div></section>
+<script>window.STORYFORGE_VOICE_EDITOR={slug:{{ project.project_slug|tojson }}};</script>
 {% endblock %}
