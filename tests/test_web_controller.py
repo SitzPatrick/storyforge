@@ -372,6 +372,12 @@ def test_polished_workspace_routes_render_and_dashboard_filters(web_settings: We
     assert client.get("/settings").status_code == 200
     assert client.get("/projects/sample-book/voice-plan").status_code == 200
     assert client.get("/projects/sample-book/build").status_code == 200
+    build_page = client.get("/projects/sample-book/build")
+    assert "1. Analyze EPUB" in build_page.text
+    assert "2. Normalize" in build_page.text
+    assert "3. Voice Plan" in build_page.text
+    assert "4. Manifest" in build_page.text
+    assert "5. Build Audiobook" in build_page.text
     assert client.get("/projects/sample-book/characters/character-a").status_code == 200
 
 
