@@ -1032,8 +1032,13 @@ def _registry_voice_record(registry: Mapping[str, Any] | None, provider: str, pr
         return {"provider": provider, "provider_voice_id": provider_voice_id, "availability": "available", "voice_id": f"{provider}.{provider_voice_id}"}
     voices = registry.get("voices", []) if isinstance(registry, Mapping) else []
     for voice in voices:
-        if isinstance(voice, Mapping) and voice.get("provider") == provider and voice.get("provider_voice_id") == provider_voice_id:
-            return voice
+        if isinstance(voice, Mapping):
+            voice_provider = voice.get("provider")
+            voice_voice_id = voice.get("provider_voice_id")
+            if voice_provider == provider and voice_voice_id == provider_voice_id:
+                return voice
+        elif getattr(voice, "provider", None) == provider and getattr(voice, "provider_voice_id", None) == provider_voice_id:
+            return dataclass_to_dict(voice)
     return None
 
 
