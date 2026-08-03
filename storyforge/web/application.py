@@ -287,10 +287,15 @@ class WebApplicationService:
                 for voice in registry.get("voices", ())
             ],
         }
+        settings = load_settings()
+        fallback_voice_id = settings.kokoro.voice or "am_adam"
         config = {
             "voice_planner": {
                 "renderer_contract_version": 1,
                 "manifest_filename": "synthesis_manifest.json",
+                "default_unresolved_speaker_policy": "fallback"
+                if self._single_voice_requested(project)
+                else "reject",
             }
         }
         result = build_synthesis_manifest(
@@ -298,6 +303,13 @@ class WebApplicationService:
             plan,
             registry_payload,
             config,
+            unresolved_speaker_policy="fallback" if self._single_voice_requested(project) else None,
+            unresolved_fallback_voice={
+                "provider": "kokoro",
+                "provider_voice_id": fallback_voice_id,
+            }
+            if self._single_voice_requested(project)
+            else None,
             source_artifacts=project.artifact_map,
             created_by="storyforge.web",
         )
