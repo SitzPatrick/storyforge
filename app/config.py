@@ -148,7 +148,7 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             api_url=_as_str(data, ("kokoro", "api_url")),
             api_key=_as_str(data, ("kokoro", "api_key"), default="not-needed"),
             model=_as_str(data, ("kokoro", "model"), default="kokoro"),
-            voice=_as_str(data, ("kokoro", "voice"), default="af_heart"),
+            voice=_as_str(data, ("kokoro", "voice"), default="am_adam"),
             speed=float(_as_number(data, ("kokoro", "speed"), default=1.0)),
             timeout_seconds=float(_as_number(data, ("kokoro", "timeout_seconds"), default=120.0)),
             retry_delays_seconds=[

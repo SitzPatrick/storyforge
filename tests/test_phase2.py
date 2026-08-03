@@ -86,6 +86,36 @@ def make_wav(path: Path, duration: float = 0.25, frequency: float = 440.0, sampl
     return path
 
 
+def test_load_settings_defaults_kokoro_voice_to_am_adam(tmp_path: Path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+paths:
+  books_dir: ./books
+  output_dir: ./output
+  temp_dir: ./temp
+  log_dir: ./logs
+kokoro:
+  api_url: http://127.0.0.1:8880/v1
+  api_key: not-needed
+  model: kokoro
+conversion:
+  chunk_chars: 8000
+analysis:
+  llm_provider: ollama
+normalization:
+  enabled: true
+voice_planner:
+  schema_version: 1
+  enabled: true
+""",
+        encoding="utf-8",
+    )
+
+    settings = load_settings(config_path)
+    assert settings.kokoro.voice == "am_adam"
+
+
 def test_epub_metadata_chapter_order_and_cover(tmp_path: Path):
     epub_path = make_test_epub(tmp_path / "sample.epub", chapter_count=3)
     book = read_epub(epub_path)

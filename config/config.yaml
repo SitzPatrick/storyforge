@@ -7,7 +7,7 @@ kokoro:
   api_url: http://Kokoro-FastAPI:8880/v1
   api_key: not-needed
   model: kokoro
-  voice: af_heart
+  voice: am_adam
   speed: 1.0
   timeout_seconds: 120
   retry_delays_seconds: [2, 5, 10]
