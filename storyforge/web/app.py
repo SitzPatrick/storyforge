@@ -246,15 +246,20 @@ def create_app(
         return _start_workflow(slug, "normalize")
 
     @app.post("/projects/{slug}/plan")
-    def plan_project(slug: str):
-        return _start_workflow(slug, "plan")
+    def plan_project(slug: str, build_mode: str = Form("character-aware")):
+        return _start_workflow(slug, "plan", build_mode=build_mode)
 
     @app.post("/projects/{slug}/manifest")
     def manifest_project(slug: str):
         return _start_workflow(slug, "manifest")
 
-    def _start_workflow(slug: str, action: str):
+    def _start_workflow(slug: str, action: str, build_mode: str = "character-aware"):
         project = load_project_or_404(slug)
+        if action in {"plan", "build"}:
+            project.build_mode = (
+                "single-voice" if str(build_mode).strip() == "single-voice" else "character-aware"
+            )
+            services.projects.save_project(project)
         try:
             services.jobs.start(project, action)
         except JobBusyError as exc:
@@ -262,13 +267,8 @@ def create_app(
         return RedirectResponse(url=f"/projects/{project.project_slug}/build", status_code=303)
 
     @app.post("/projects/{slug}/build")
-    def build_project(slug: str):
-        project = load_project_or_404(slug)
-        try:
-            services.jobs.start(project, "build")
-        except JobBusyError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from None
-        return RedirectResponse(url=f"/projects/{project.project_slug}/build", status_code=303)
+    def build_project(slug: str, build_mode: str = Form("character-aware")):
+        return _start_workflow(slug, "build", build_mode=build_mode)
 
     @app.post("/projects/{slug}/cancel")
     def cancel_project(slug: str):
@@ -282,11 +282,7 @@ def create_app(
     @app.post("/projects/{slug}/resume")
     def resume_project(slug: str):
         project = load_project_or_404(slug)
-        try:
-            services.jobs.start(project, "build")
-        except JobBusyError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from None
-        return RedirectResponse(url=f"/projects/{project.project_slug}/build", status_code=303)
+        return _start_workflow(slug, "build", build_mode=project.build_mode)
 
     @app.get("/projects/{slug}/voice-plan.json")
     def voice_plan_json(slug: str):

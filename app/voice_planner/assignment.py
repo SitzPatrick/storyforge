@@ -73,6 +73,16 @@ def assign_voices(context: AssignmentContext) -> AssignmentResult:
     config = _coerce_config(context.config)
     registry_lookup = _build_registry_lookup(context.registry)
     conflict_report = context.conflict_report or ConflictReport(schema_version=1, book_id=context.book_id, series_id=context.series_id, pair_evidence=[], conflicts=[], warnings=[], summary={})
+    if _single_voice_mode_enabled(config):
+        result = _assign_single_voice_mode(context, registry_lookup)
+        plan_hash = _plan_hash(result.voice_plan)
+        voice_plan = replace(result.voice_plan, statistics={**result.voice_plan.statistics, "plan_hash": plan_hash})
+        assignment_report = replace(result.assignment_report, plan_hash=plan_hash)
+        return AssignmentResult(
+            voice_plan=voice_plan,
+            assignment_report=assignment_report,
+            optimization_statistics=assignment_report.optimization_statistics,
+        )
     targets = _build_targets(context)
     prepared_targets = tuple(_prepare_target(target, registry_lookup) for target in targets)
     best: dict[str, Any] | None = None
@@ -100,6 +110,242 @@ def assign_voices(context: AssignmentContext) -> AssignmentResult:
     voice_plan = replace(best["voice_plan"], statistics={**best["voice_plan"].statistics, "plan_hash": plan_hash})
     assignment_report = replace(best["assignment_report"], plan_hash=plan_hash)
     return AssignmentResult(voice_plan=voice_plan, assignment_report=assignment_report, optimization_statistics=assignment_report.optimization_statistics)
+
+
+def _single_voice_mode_enabled(config: Any) -> bool:
+    if isinstance(config, Mapping):
+        value = config.get("single_voice_mode")
+    else:
+        value = getattr(config, "single_voice_mode", False)
+    return bool(value)
+
+
+def _assign_single_voice_mode(context: AssignmentContext, registry_lookup: Mapping[tuple[str, str], VoiceCapability]) -> AssignmentResult:
+    candidate = _select_single_voice_candidate(context, registry_lookup)
+    narrator_assignment = _single_voice_assignment(candidate, target_name="Narrator", source_label="single voice mode", is_narrator=True)
+    character_assignments: list[CharacterPlan] = []
+    for profile in sorted(context.character_profiles, key=_profile_sort_key):
+        assignment = _single_voice_assignment(
+            candidate,
+            target_name=profile.canonical_name,
+            source_label="single voice mode",
+            is_narrator=False,
+        )
+        character_assignments.append(
+            CharacterPlan(
+                canonical_character_id=profile.canonical_character_id,
+                canonical_name=profile.canonical_name,
+                role=profile.role,
+                prominence=profile.prominence,
+                speaking_frequency=profile.speaking_frequency,
+                first_appearance=profile.first_appearance_order,
+                likely_recurrence=profile.likely_recurrence,
+                age_bucket=profile.age_bucket,
+                gender_presentation=profile.gender_presentation,
+                species_or_archetype=profile.species_or_archetype,
+                scene_relationships=[dataclass_to_dict(item) for item in profile.scene_relationships],
+                unresolved_metadata=dict(profile.unresolved_metadata),
+                assignment=assignment,
+                notes=profile.notes,
+            )
+        )
+
+    voice_plan = VoicePlan(
+        schema_version=1,
+        planner_version="phase4b-milestone8",
+        book_id=context.book_id,
+        series_id=context.series_id,
+        source_analysis_hash=context.source_analysis_hash,
+        source_analysis_path=context.source_analysis_path,
+        narrator=NarratorPlan(assignment=narrator_assignment, rationale=narrator_assignment.rationale),
+        characters=character_assignments,
+        conflicts=[],
+        scarcity_events=[],
+        warnings=[],
+        statistics={
+            "single_voice_mode": True,
+            "selected_provider": candidate.provider,
+            "selected_provider_voice_id": candidate.provider_voice_id,
+            "selected_voice_id": candidate.voice_id,
+        },
+        generated_at=context.generated_at or "1970-01-01T00:00:00Z",
+        generated_by=context.generated_by or "deterministic-assignment-engine",
+        source_voice_registry_hash=context.source_voice_registry_hash,
+        source_series_bindings_hash=context.source_series_bindings_hash,
+        notes=None,
+        user_editable_notes=[],
+    )
+
+    score_values = [character.assignment.score or 0 for character in character_assignments if character.assignment is not None]
+    # The narrator voice is intentionally reused across every speaker; this is not a mapping plan.
+    reused_voice_count = max(0, len(character_assignments) - 1)
+    report = PlanningReport(
+        schema_version=1,
+        book_id=context.book_id,
+        series_id=context.series_id,
+        plan_hash="",
+        generated_at=context.generated_at or "1970-01-01T00:00:00Z",
+        narrator_choice=dataclass_to_dict(voice_plan.narrator),
+        total_characters=len(context.character_profiles),
+        total_locked_assignments=0,
+        inherited_bindings_reused=0,
+        manual_overrides_honored=0,
+        new_assignments=len(character_assignments),
+        reused_voices=reused_voice_count,
+        relaxed_conflicts=0,
+        unresolved_conflicts=0,
+        scarcity_level=getattr(context.voice_budget, "scarcity_level", "none") if context.voice_budget is not None else "none",
+        protected_characters=[],
+        assignment_score_statistics={
+            "count": len(score_values),
+            "total": sum(score_values),
+            "minimum": min(score_values) if score_values else 0,
+            "maximum": max(score_values) if score_values else 0,
+            "average": round(mean(score_values), 3) if score_values else 0.0,
+        },
+        optimization_statistics={
+            "search_strategy": "single_voice",
+            "deterministic": True,
+            "single_voice_mode": True,
+            "hard_conflict_count": 0,
+            "soft_conflict_penalty": 0,
+            "states_explored": 1,
+            "branches_pruned": 0,
+            "objective_score": sum(score_values),
+        },
+        runtime_ms=0,
+        deterministic_verification={"byte_identical_on_rerun": True, "json_key_ordering": True, "optimization_deterministic": True},
+        reused_bindings=[],
+        new_bindings=[
+            {
+                "canonical_character_id": profile.canonical_character_id,
+                "canonical_name": profile.canonical_name,
+                "provider": candidate.provider,
+                "provider_voice_id": candidate.provider_voice_id,
+                "voice_id": candidate.voice_id,
+                "source": "single voice mode",
+                "continuity_status": "single-voice",
+                "score": candidate.total_score,
+            }
+            for profile in sorted(context.character_profiles, key=_profile_sort_key)
+        ],
+        manual_overrides=[],
+        locked_assignments=[],
+        deferred_characters=[],
+        unavailable_voices=[],
+        scarcity_events=[],
+        similarity_conflicts=[],
+        scene_conflicts=[],
+        fallback_tiers_used=[],
+        scoring_summaries=[
+            {"character_id": profile.canonical_character_id, "score": candidate.total_score}
+            for profile in sorted(context.character_profiles, key=_profile_sort_key)
+        ],
+        validation_warnings=[],
+        final_statistics={
+            "score_total": sum(score_values),
+            "soft_penalty": 0,
+            "objective_score": sum(score_values),
+            "unique_voices": 1,
+            "reused_voices": reused_voice_count,
+            "pair_constraint_count": 0,
+        },
+    )
+    return AssignmentResult(voice_plan=voice_plan, assignment_report=report, optimization_statistics=report.optimization_statistics)
+
+
+def _select_single_voice_candidate(context: AssignmentContext, registry_lookup: Mapping[tuple[str, str], VoiceCapability]) -> CandidateScore:
+    narrator_binding = get_narrator_binding(context.series_bindings) if context.series_bindings is not None else None
+    if narrator_binding is not None and narrator_binding.provider and narrator_binding.provider_voice_id:
+        voice = registry_lookup.get((narrator_binding.provider, narrator_binding.provider_voice_id))
+        if voice is not None and is_voice_selectable(voice):
+            return _binding_candidate(None, narrator_binding, voice)
+
+    narrator_candidates = [candidate for candidate in context.narrator_candidates if _candidate_is_selectable(candidate, registry_lookup)]
+    if narrator_candidates:
+        return sorted(narrator_candidates, key=_candidate_sort_key)[0]
+
+    character_candidates = [
+        candidate
+        for scores in context.candidate_scores_by_character.values()
+        for candidate in scores
+        if _candidate_is_selectable(candidate, registry_lookup)
+    ]
+    if character_candidates:
+        return sorted(character_candidates, key=_candidate_sort_key)[0]
+
+    selectable_registry_voices = [voice for voice in registry_lookup.values() if is_voice_selectable(voice)]
+    if selectable_registry_voices:
+        voice = sorted(selectable_registry_voices, key=lambda item: (-item.quality_score, -item.base_priority, item.provider, item.provider_voice_id))[0]
+        return CandidateScore(
+            provider=voice.provider,
+            provider_voice_id=voice.provider_voice_id,
+            voice_id=voice.voice_id,
+            registry_key=f"{voice.provider}::{voice.provider_voice_id}",
+            total_score=0,
+            eligible=True,
+            eligibility_status="eligible",
+            ineligibility_reasons=[],
+            score_components=[],
+            bonuses=[],
+            penalties=[],
+            tie_break_metadata={
+                "binding_precedence_rank": 99,
+                "total_score": 0,
+                "scene_separation_score": 0,
+                "registry_base_priority": voice.base_priority,
+                "registry_quality_points": int(round(voice.quality_score * 1000)),
+                "provider_sort_key": voice.provider,
+                "provider_voice_id_sort_key": voice.provider_voice_id,
+            },
+            rationale="single voice mode fallback",
+            binding_precedence="no binding",
+            binding_precedence_rank=99,
+            scene_separation_score=0,
+            registry_base_priority=voice.base_priority,
+            registry_quality_points=int(round(voice.quality_score * 1000)),
+        )
+
+    raise AssignmentError("single voice mode requires at least one selectable voice")
+
+
+def _candidate_is_selectable(candidate: CandidateScore, registry_lookup: Mapping[tuple[str, str], VoiceCapability]) -> bool:
+    if not candidate.eligible or not candidate.provider or not candidate.provider_voice_id:
+        return False
+    voice = registry_lookup.get((candidate.provider, candidate.provider_voice_id))
+    return voice is not None and is_voice_selectable(voice)
+
+
+def _single_voice_assignment(candidate: CandidateScore, *, target_name: str, source_label: str, is_narrator: bool) -> VoiceAssignment:
+    score_components = [dataclass_to_dict(component) for component in candidate.score_components]
+    return VoiceAssignment(
+        voice_id=candidate.voice_id or None,
+        provider=candidate.provider or None,
+        provider_voice_id=candidate.provider_voice_id or None,
+        locked=False,
+        source=source_label,
+        continuity_status="single-voice" if is_narrator else "single-voice",
+        registry_key=candidate.registry_key or None,
+        score=candidate.total_score,
+        score_components=score_components,
+        scarcity_effects=[component["name"] for component in score_components if component.get("name") in {"scarcity", "voice_reuse", "similarity_cluster"}],
+        conflict_effects=[],
+        relaxed_constraints=[],
+        preserved_constraints=[],
+        confidence=1.0,
+        unavailable_reason=None,
+        rationale=f"single voice mode: using {candidate.provider}::{candidate.provider_voice_id} for {target_name}",
+        rejected_candidates=[],
+        generated=True,
+        provenance=AssignmentProvenance(
+            source=source_label,
+            reason=f"single voice mode: using {candidate.provider}::{candidate.provider_voice_id}",
+            basis="single voice mode",
+            selected_from=[candidate.voice_id] if candidate.voice_id else [],
+            score=float(candidate.total_score),
+            tie_breaker=_tie_breaker(candidate),
+        ),
+    )
 
 
 def serialize_voice_plan(plan: VoicePlan) -> str:

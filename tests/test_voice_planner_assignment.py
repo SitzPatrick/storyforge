@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from app.config import load_settings
@@ -431,6 +432,62 @@ def test_deterministic_serialization_and_tie_breaks_are_byte_identical():
     assert serialize_assignment_report(first.assignment_report) == serialize_assignment_report(second.assignment_report)
     assert [character.assignment.provider_voice_id for character in first.voice_plan.characters] == ["v1", "v2"]
     assert [character.assignment.provider_voice_id for character in second.voice_plan.characters] == ["v1", "v2"]
+
+
+def test_single_voice_mode_uses_one_voice_for_every_assignment():
+    profiles = [
+        _profile("lead", role="protagonist", prominence="primary or lead", speaking_frequency=8, dialogue_count=6, scene_count=5, likely_recurrence=True),
+        _profile("support", role="supporting", prominence="supporting recurring", speaking_frequency=4, dialogue_count=3, scene_count=3, likely_recurrence=True),
+    ]
+    registry = _registry()
+    narrator_candidates = (
+        _candidate("beta", "v2", total_score=100, quality_points=92, base_priority=90),
+    )
+    candidate_scores = {
+        "lead": (
+            _candidate("alpha", "v1", total_score=80, quality_points=95, base_priority=100),
+            _candidate("gamma", "v3", total_score=70, quality_points=70, base_priority=10),
+        ),
+        "support": (
+            _candidate("alpha", "v1", total_score=60, quality_points=95, base_priority=100),
+            _candidate("gamma", "v3", total_score=55, quality_points=70, base_priority=10),
+        ),
+    }
+    scenes = [_scene("s1", 1, ["lead", "support"], ["lead", "support"])]
+    dialogues = [_dialogue("d1", "s1", 1, "lead", "Lead."), _dialogue("d2", "s1", 2, "support", "Support.")]
+    budget = _budget(profiles, candidate_scores)
+    report = _conflict_report(profiles, scenes, dialogues, candidate_scores, registry, voice_budget=budget)
+    context = AssignmentContext(
+        book_id="book-single-voice",
+        series_id="series-single-voice",
+        source_analysis_path="/tmp/analysis",
+        source_analysis_hash="analysis-hash",
+        source_voice_registry_hash="registry-hash",
+        source_series_bindings_hash=None,
+        character_profiles=tuple(profiles),
+        registry=registry,
+        series_bindings=None,
+        candidate_scores_by_character=candidate_scores,
+        narrator_candidates=narrator_candidates,
+        voice_budget=budget,
+        conflict_report=report,
+        config=replace(load_settings().voice_planner, single_voice_mode=True),
+    )
+
+    result = assign_voices(context)
+
+    narrator_assignment = result.voice_plan.narrator.assignment
+    assert narrator_assignment.provider_voice_id == "v2"
+    character_assignments = []
+    for character in result.voice_plan.characters:
+        assert character.assignment is not None
+        character_assignments.append(character.assignment)
+    assert {assignment.provider_voice_id for assignment in character_assignments} == {"v2"}
+    assert all(assignment.source == "single voice mode" for assignment in character_assignments)
+    assert result.assignment_report.optimization_statistics["search_strategy"] == "single_voice"
+    assert result.assignment_report.optimization_statistics["single_voice_mode"] is True
+    assert result.assignment_report.final_statistics["unique_voices"] == 1
+    assert result.assignment_report.reused_voices == 1
 
 
 def test_critical_scarcity_reuses_the_only_voice_available():

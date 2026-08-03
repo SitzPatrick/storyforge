@@ -98,6 +98,7 @@ class VoicePlannerSettings:
     report_filename: str
     preserve_user_edits: bool
     dry_run_default: bool
+    single_voice_mode: bool
     scoring: ScoringConfig = field(default_factory=ScoringConfig.default)
     budget: BudgetConfig = field(default_factory=BudgetConfig.default)
     conflicts: ConflictConfig = field(default_factory=ConflictConfig.default)
@@ -214,6 +215,9 @@ def load_settings(config_path: str | Path | None = None) -> StoryforgeSettings:
             ),
             dry_run_default=bool(
                 _as_bool(data, ("voice_planner", "dry_run_default"), default=True)
+            ),
+            single_voice_mode=bool(
+                _as_bool(data, ("voice_planner", "single_voice_mode"), default=False)
             ),
             scoring=ScoringConfig.from_mapping(scoring_raw),
             budget=BudgetConfig.from_mapping(budget_raw),

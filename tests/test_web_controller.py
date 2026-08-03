@@ -310,6 +310,15 @@ def test_fake_build_lifecycle_completion_failure_cancel_resume_and_single_active
     services, client = services_and_client
     create_uploaded_project(client)
 
+    plan = client.post(
+        "/projects/sample-book/plan",
+        data={"build_mode": "single-voice"},
+        follow_redirects=False,
+    )
+    assert plan.status_code == 303
+    assert services.projects.load_project("sample-book").build_mode == "single-voice"
+    services.jobs.finish("sample-book", success=True)
+
     first = client.post("/projects/sample-book/build", follow_redirects=False)
     assert first.status_code == 303
     running = client.get("/projects/sample-book/status").json()
@@ -378,6 +387,7 @@ def test_polished_workspace_routes_render_and_dashboard_filters(web_settings: We
     assert "3. Voice Plan" in build_page.text
     assert "4. Manifest" in build_page.text
     assert "5. Build Audiobook" in build_page.text
+    assert "Single voice mode" in build_page.text
     assert client.get("/projects/sample-book/characters/character-a").status_code == 200
 
 

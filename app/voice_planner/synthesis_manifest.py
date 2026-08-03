@@ -61,7 +61,7 @@ class RenderUnit:
     render_unit_id: str
     canonical_segment_id: str
     scene_id: str
-    source_order: tuple[int, ...]
+    source_order: list[int]
     segment_type: str
     speaker_type: str
     canonical_speaker_id: str | None
@@ -555,7 +555,7 @@ def _blocked_unit(
     scene_id: str,
     canonical_segment_id: str,
     segment_type: str,
-    source_order: tuple[int, ...],
+    source_order: list[int],
     canonical_speaker_id: str | None,
     display_speaker_name: str | None,
     raw_source_text: str,
@@ -705,7 +705,7 @@ def _coerce_render_unit(data: Mapping[str, Any]) -> RenderUnit:
         render_unit_id=str(data["render_unit_id"]),
         canonical_segment_id=str(data["canonical_segment_id"]),
         scene_id=str(data["scene_id"]),
-        source_order=tuple(int(v) for v in data.get("source_order", []) or []),
+        source_order=[int(v) for v in data.get("source_order", []) or []],
         segment_type=str(data["segment_type"]),
         speaker_type=str(data["speaker_type"]),
         canonical_speaker_id=_optional_str(data.get("canonical_speaker_id")),
@@ -805,26 +805,26 @@ def _collect_segments(story: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     collected: list[Mapping[str, Any]] = []
     for item in story.get("narration_paragraphs", []) or []:
         if isinstance(item, Mapping):
-            collected.append(dict(item, segment_type="narration", source_text=item.get("text", ""), synthesis_text=item.get("text", ""), source_order=(int(item.get("chapter", 0)), int(item.get("paragraph_index", 0)), 0)))
+            collected.append(dict(item, segment_type="narration", source_text=item.get("text", ""), synthesis_text=item.get("text", ""), source_order=[int(item.get("chapter", 0)), int(item.get("paragraph_index", 0)), 0]))
     for item in story.get("dialogue", []) or []:
         if isinstance(item, Mapping):
-            collected.append(dict(item, segment_type="dialogue", source_text=item.get("quoted_text", ""), synthesis_text=item.get("quoted_text", ""), source_order=(int(item.get("chapter", 0)), int(item.get("paragraph_index", 0)), 1)))
+            collected.append(dict(item, segment_type="dialogue", source_text=item.get("quoted_text", ""), synthesis_text=item.get("quoted_text", ""), source_order=[int(item.get("chapter", 0)), int(item.get("paragraph_index", 0)), 1]))
     return collected
 
 
-def _segment_source_order(segment: Mapping[str, Any], segment_index: int) -> tuple[int, int, int, int]:
+def _segment_source_order(segment: Mapping[str, Any], segment_index: int) -> list[int]:
     source_order = segment.get("source_order")
     if isinstance(source_order, Sequence) and not isinstance(source_order, (str, bytes)):
         values = [int(v) for v in source_order][:4]
         while len(values) < 4:
             values.append(0)
-        return tuple(values)  # type: ignore[return-value]
+        return values
     if isinstance(source_order, int):
-        return (int(source_order), 0, 0, 0)
+        return [int(source_order), 0, 0, 0]
     chapter = int(segment.get("chapter") or segment.get("chapter_number") or 0)
     scene_number = int(segment.get("scene_number") or 0)
     paragraph_index = int(segment.get("paragraph_index") or segment.get("paragraph") or 0)
-    return (chapter, scene_number, paragraph_index, int(segment_index))
+    return [chapter, scene_number, paragraph_index, int(segment_index)]
 
 
 def _segment_sort_key(segment: Mapping[str, Any]) -> tuple:

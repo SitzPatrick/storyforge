@@ -259,7 +259,11 @@ def test_build_manifest_basic_order_and_round_trip_and_immutability(tmp_path: Pa
     assert result.validation_report.narration_units == 2
     assert result.validation_report.dialogue_units == 2
 
+    assert all(isinstance(unit.source_order, list) for unit in manifest.render_units)
+
     payload = serialize_synthesis_manifest(manifest)
+    payload_json = json.loads(payload)
+    assert all(isinstance(unit["source_order"], list) for unit in payload_json["render_units"])
     assert payload == serialize_synthesis_manifest(manifest)
 
     path = tmp_path / "synthesis_manifest.json"

@@ -15,6 +15,7 @@ from app.kokoro_client import KokoroClient
 from app.manifest import ConversionManifest, load_manifest, save_manifest
 from app.m4b import create_m4b
 from app.runner import BookConversionRunner
+from storyforge.cli import main as storyforge_main
 
 
 def make_cover(path: Path) -> Path:
@@ -104,6 +105,47 @@ def test_epub_metadata_chapter_order_and_cover(tmp_path: Path):
     chapters = list_chapters(book)
     assert [chapter.title for chapter in chapters] == ["Chapter 1", "Chapter 2", "Chapter 3"]
     assert [chapter.number for chapter in chapters] == [1, 2, 3]
+
+
+def test_storyforge_build_cli_completes_for_a_sample_epub(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    epub_path = make_test_epub(tmp_path / "sample.epub", chapter_count=2)
+    settings = load_settings(None)
+    settings.paths.books_dir = tmp_path / "books"
+    settings.paths.output_dir = tmp_path / "output"
+    settings.paths.temp_dir = tmp_path / "temp"
+    settings.paths.log_dir = tmp_path / "logs"
+    settings.kokoro.voice = "af_heart"
+    settings.kokoro.speed = 1.0
+    settings.kokoro.retry_delays_seconds = [0, 0, 0]
+    settings.conversion.chunk_chars = 4000
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.voice = kwargs.get("voice", "af_heart")
+
+        def health_check(self):
+            return "openapi.json"
+
+        def validate_voice(self, voice):
+            return None
+
+        def synthesize(self, text, output_path):
+            chapter_marker = "Chapter 2" if "chapter 2" in text.lower() else "Chapter 1"
+            make_wav(output_path, duration=0.1, frequency=440.0 if chapter_marker == "Chapter 1" else 660.0)
+            return output_path
+
+    monkeypatch.setattr("app.runner.KokoroClient", FakeClient)
+    monkeypatch.setattr("app.convert.load_settings", lambda _config_path=None: settings)
+
+    exit_code = storyforge_main(["build", "--epub", str(epub_path), "--config", str(tmp_path / "config.yaml")])
+    assert exit_code == 0
+
+    book_dir = settings.paths.output_dir / "Phase 2 Test Book"
+    manifest_path = book_dir / "manifest.json"
+    m4b_path = book_dir / "Phase 2 Test Book.m4b"
+    assert manifest_path.exists()
+    assert m4b_path.exists()
+    assert json.loads(manifest_path.read_text(encoding="utf-8"))["status"] == "complete"
 
 
 def test_manifest_roundtrip_and_resume_state(tmp_path: Path):

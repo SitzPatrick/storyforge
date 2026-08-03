@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -226,7 +226,7 @@ class WebApplicationService:
             narrator_candidates=narrator_scores,
             voice_budget=budget,
             conflict_report=conflicts,
-            config=load_settings().voice_planner,
+            config=self._voice_planner_config(project),
             generated_by="storyforge.web",
         )
         result = assign_voices(context)
@@ -376,7 +376,11 @@ class WebApplicationService:
             project_id=project.project_id,
             book_id=str(normalized.get("book_id") or project.project_slug),
             story_input=normalized,
-            voice_planning_config={"voice_registry": registry_payload, "editable_plan": editable},
+            voice_planning_config={
+                "voice_registry": registry_payload,
+                "editable_plan": editable,
+                "voice_planner": asdict(self._voice_planner_config(project)),
+            },
             editable_plan=editable,
             manifest_config={"voice_registry": registry_payload, "manifest": manifest},
             renderer_config={
@@ -465,6 +469,16 @@ class WebApplicationService:
             "final_artifact": project.artifact_map.get("final_m4b", ""),
             "report": asdict(report),
         }
+
+    def _voice_planner_config(self, project: ProjectRecord):
+        settings = load_settings().voice_planner
+        if self._single_voice_requested(project):
+            return replace(settings, single_voice_mode=True)
+        return settings
+
+    @staticmethod
+    def _single_voice_requested(project: ProjectRecord) -> bool:
+        return project.build_mode in {"single-voice", "legacy/single-voice"}
 
     def load_voice_plan(self, project: ProjectRecord):
         root = self.projects.project_paths(project.project_slug)
