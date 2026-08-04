@@ -362,6 +362,42 @@ def test_duplicate_source_ids_fail_and_reordered_inputs_are_byte_identical():
     assert serialize_synthesis_manifest(ordered.manifest) == serialize_synthesis_manifest(reordered.manifest)
 
 
+def test_manifest_uses_dialogue_id_to_disambiguate_same_paragraph_dialogue_entries():
+    story = {
+        "schema_version": 1,
+        "book_id": "book-9",
+        "series_id": "series-9",
+        "title": "River City Nights",
+        "author": "Test Author",
+        "language": "en",
+        "source_analysis_hash": "analysis-hash",
+        "source_analysis_path": "/tmp/analysis.json",
+        "source_document_id": "book-9",
+        "source_signature": {"sha256": "analysis-hash"},
+        "characters": [
+            {"canonical_character_id": "ben", "canonical_name": "Ben", "aliases": [], "source_aliases": []},
+        ],
+        "scenes": [
+            {"scene_id": "scene-1", "chapter": 1, "scene_number": 1, "start_paragraph": 4, "end_paragraph": 4, "summary": "Two lines in one paragraph.", "source_document_id": "book-9", "source_text_hash": "scene-1"},
+        ],
+        "dialogue": [
+            {"dialogue_id": "dialogue-1", "scene_id": "scene-1", "chapter": 1, "paragraph_index": 4, "speaker": "Ben", "quoted_text": "First line.", "source_document_id": "book-9", "source_text_hash": "d1", "source_reference": {"chapter": 1, "paragraph_index": 4, "source_document_id": "book-9", "source_text_hash": "d1", "excerpt": "First line."}},
+            {"dialogue_id": "dialogue-2", "scene_id": "scene-1", "chapter": 1, "paragraph_index": 4, "speaker": "Ben", "quoted_text": "Second line.", "source_document_id": "book-9", "source_text_hash": "d2", "source_reference": {"chapter": 1, "paragraph_index": 4, "source_document_id": "book-9", "source_text_hash": "d2", "excerpt": "Second line."}},
+        ],
+        "narration_paragraphs": [],
+        "source_artifacts": {"normalized_story": "analysis/normalized_story.json"},
+    }
+    plan = _voice_plan()
+    registry = _voice_registry()
+    config = _config()
+
+    manifest = build_synthesis_manifest(story, plan, registry, config, unresolved_speaker_policy="block").manifest
+    assert len(manifest.render_units) == 2
+    assert len({unit.render_unit_id for unit in manifest.render_units}) == 2
+    assert all(unit.canonical_segment_id.startswith("seg-") for unit in manifest.render_units)
+
+
+
 def test_text_voice_note_and_render_contract_hashes_change_only_when_expected():
     registry = _voice_registry()
     config = _config()

@@ -1010,7 +1010,22 @@ def _normalize_source_reference(value: Any, chapter: int, segment: Mapping[str, 
 
 def _source_identity(segment: Mapping[str, Any], story: Mapping[str, Any], scene_id: str) -> str:
     source_document_id = _optional_str(segment.get("source_document_id") or story.get("source_document_id") or story.get("book_id") or story.get("series_id")) or "unknown"
-    return _stable_join([story.get("book_id") or source_document_id, scene_id, _optional_str(segment.get("segment_id") or segment.get("id") or segment.get("source_reference", {}).get("paragraph_index") if isinstance(segment.get("source_reference"), Mapping) else None) or "", _optional_str(segment.get("segment_type") or segment.get("type") or "") or ""])
+    source_reference = segment.get("source_reference")
+    paragraph_index = source_reference.get("paragraph_index") if isinstance(source_reference, Mapping) else None
+    return _stable_join(
+        [
+            story.get("book_id") or source_document_id,
+            scene_id,
+            _optional_str(
+                segment.get("dialogue_id")
+                or segment.get("segment_id")
+                or segment.get("id")
+                or paragraph_index
+            )
+            or "",
+            _optional_str(segment.get("segment_type") or segment.get("type") or "") or "",
+        ]
+    )
 
 
 def _canonical_segment_id(segment: Mapping[str, Any], source_identity: str) -> str:
